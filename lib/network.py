@@ -1,9 +1,23 @@
 import torch
 import torch.nn as nn
 import torch.optim as optim
+from torch.distributions.categorical import Categorical
+from torch.distributions.normal import Normal
+import torch.nn.functional as F
 
 import jax
 from jax import numpy as jp
+
+# if np.random.rand() < current_epsilon:
+#     # Take random action with probability epsilon
+#     action = env.action_space.sample()
+#     log_prob = None  # No log prob for random actions
+# else:
+#     # Actor chooses action based on policy
+#     action_probs = actor(state_tensor)
+#     action_dist = torch.distributions.Categorical(action_probs)
+#     action = action_dist.sample()  # Sample action according to action probabilities
+#     log_prob = action_dist.log_prob(action)
 
 # Define the MLP architecture
 class MLP(nn.Module):
@@ -11,19 +25,27 @@ class MLP(nn.Module):
         super(MLP, self).__init__()
         self.fc1 = nn.Linear(input_size, hidden_size)
         self.fc2 = nn.Linear(hidden_size, hidden_size)
-        self.fc3 = nn.Linear(hidden_size, output_size)
+        self.fc3 = nn.Linear(hidden_size, output_size*2)
+        self.softmax=torch.nn.Softmax(-1)
 
     def forward(self, x):
-        x = torch.tanh(self.fc1(x))  # First hidden layer with ReLU activation
-        x = torch.tanh(self.fc2(x))  # Second hidden layer with ReLU activation
-        x = torch.tanh(self.fc3(x))  # Output layer, also tanh for actions in [-1, 1] range
-        return x
+        x = torch.relu(self.fc1(x))  # First hidden layer with ReLU activation
+        x = torch.relu(self.fc2(x))  # Second hidden layer with ReLU activation
+        logits = torch.relu(self.fc3(x))  # Output layer, also tanh for actions in [-1, 1] range
+        probs = self.softmax(x)
+        return logits, probs
 
-    def select_action(self, observation):
+    def select_action(self, observation, env, epsilon=0.1):
         """Use the MLP to select an action given the current observation."""
-        with torch.no_grad():  # No need to compute gradients for action selection
-            action = self(observation)
-        return action  # Return action as a NumPy array for the environment
+        logits, action_probs = self(observation)
+        loc, scale = torch.split(logits, logits.shape[-1] // 2, dim=-1)
+        scale = F.softplus(scale) + .001
+        action_dist=Normal(loc, scale)
+        action = action_dist.sample()
+        log_prob = action_dist.log_prob(action)
+        action=torch.tanh(action)
+            
+        return action, log_prob  # Return action as a NumPy array for the environment
 
 class ValueFunction(nn.Module):
     def __init__(self, state_dim, hidden_dim=64):

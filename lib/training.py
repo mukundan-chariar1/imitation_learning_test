@@ -1,8 +1,10 @@
 import torch
 import torch.nn as nn
 import torch.optim as optim
+
 from lib.env import *
 from lib.network import *
+from lib.viz import *
 import random
 
 from brax import actuator
@@ -49,10 +51,10 @@ def run_environment(env, mlp, n_steps=100):
 # run_environment(env)
 
 if __name__=='__main__':
-    envs.register_environment('custom_humanoid', Humanoid)
+    envs.register_environment('custom_humanoid', customHumanoid)
     env = envs.create('custom_humanoid', 100, batch_size=4)
     env = gym_wrapper.VectorGymWrapper(env)
-    env = torch_wrapper.TorchWrapper(env, device='cpu')
+    env = torch_wrapper.TorchWrapper(env, device='cuda')
 
     # batch_size = 32  # Number of experiences per batch
     # observations = torch.randn(batch_size, input_size)
@@ -62,14 +64,36 @@ if __name__=='__main__':
     hidden_size = 64  # Hidden layer size
     output_size = env.action_space.shape[-1]  # Example output size (matching the number of actions in the Humanoid)
 
-    mlp = MLP(input_size, hidden_size, output_size)
-    optimizer = optim.Adam(mlp.parameters(), lr=1e-3)
+    mlp = MLP(input_size, hidden_size, output_size).to('cuda')
+    value_fn = ValueFunction(input_size, hidden_size).to('cuda')
+    optimizer_actor = optim.Adam(mlp.parameters(), lr=1e-3)
+    optimizer_critic = optim.Adam(value_fn.parameters(), lr=1e-3)
+
+    target_value=torch.zeros((4, 1)).to('cuda')
 
     # observation = state.obs  # Initial observation
 
     for step in range(100):  # Run for 100 steps
         # observation=np.array(observation)
-        action = mlp.select_action(observation)  # Get the action from the MLP
+        action, log_probs = mlp.select_action(observation, env)  # Get the action from the MLP
+        value=value_fn(observation)
+
         observation, reward, done, _ = env.step(action)  # Step the environment with the selected action
+
+        import pdb; pdb.set_trace()
+
+
+
+        target_value+=reward.reshape(4, 1)
+
+        loss=target_value-value
+
         # observation = state.obs  # Update the observation
-        print("Reward:", reward)  # Print the reward at each step
+        # print("loss:", loss)  # Print the reward at each step
+
+    # envs.register_environment('custom_humanoid', Humanoid)
+    _env = envs.create('custom_humanoid', 100)
+    _env = gym_wrapper.GymWrapper(_env)
+    _env = torch_wrapper.TorchWrapper(_env, device='cuda')
+    
+    save_video_unroll(_env, mlp, 100, './rollout.mp4')
