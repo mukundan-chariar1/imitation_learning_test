@@ -3,24 +3,37 @@
 ## Notes
 
 Attributes of state for generalized
-    root_com: (num_links,) center of mass position of link root kinematic tree
-    cinr: (num_links,) inertia in com frame
-    cd: (num_links,) link velocities in com frame
-    cdof: (qd_size,) dofs in com frame
-    cdofd: (qd_size,) cdof velocity
-    mass_mx: (qd_size, qd_size) mass matrix
-    mass_mx_inv: (qd_size, qd_size) inverse mass matrix
-    contact: calculated contacts
-    con_jac: constraint jacobian
-    con_diag: constraint A diagonal
-    con_aref: constraint reference acceleration
-    qf_smooth: (qd_size,) smooth dynamics force
-    qf_constraint: (qd_size,) force from constraints (collision etc)
-    qdd: (qd_size,) joint acceleration vector
+- root_com: (num_links,) center of mass position of link root kinematic tree
+- cinr: (num_links,) inertia in com frame
+- cd: (num_links,) link velocities in com frame
+- cdof: (qd_size,) dofs in com frame
+- cdofd: (qd_size,) cdof velocity
+- mass_mx: (qd_size, qd_size) mass matrix
+- mass_mx_inv: (qd_size, qd_size) inverse mass matrix
+- contact: calculated contacts
+- con_jac: constraint jacobian
+- con_diag: constraint A diagonal
+- con_aref: constraint reference acceleration
+- qf_smooth: (qd_size,) smooth dynamics force
+- qf_constraint: (qd_size,) force from constraints (collision etc)
+- qdd: (qd_size,) joint acceleration vector
 
 Attributes of state in general
-    q: (q_size,) joint position vector
-    qd: (qd_size,) joint velocity vector
-    x: (num_links,) link position in world frame
-    xd: (num_links,) link velocity in world frame
-    contact: calculated contacts
+- q: (q_size,) joint position vector
+- qd: (qd_size,) joint velocity vector
+- x: (num_links,) link position in world frame
+- xd: (num_links,) link velocity in world frame
+- contact: calculated contacts
+
+link names for base humanoid:
+- 'torso', 
+- 'lwaist', 
+- 'pelvis', 
+- 'right_thigh', 
+- 'right_shin', 
+- 'left_thigh', 
+- 'left_shin', 
+- 'right_upper_arm', 
+- 'right_lower_arm', 
+- 'left_upper_arm', 
+- 'left_lower_arm'

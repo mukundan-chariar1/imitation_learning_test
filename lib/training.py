@@ -1,6 +1,7 @@
 import torch
 import torch.nn as nn
 import torch.optim as optim
+import numpy as np
 
 from lib.env import *
 from lib.network import *
@@ -19,40 +20,102 @@ import jax
 from jax import numpy as jp
 import mujoco
 
-import numpy as np
+import os
+import os.path as osp
 
-def train_step(observation, reward, action):
-    """Perform a training step based on observation, action, and reward."""
-    optimizer.zero_grad()  # Clear previous gradients
-    action_pred = mlp(torch.tensor(observation, dtype=torch.float32))  # Predict action
-    loss = ((action_pred - torch.tensor(action)) ** 2).mean()  # Simple MSE loss
-    loss.backward()  # Backpropagate gradients
-    optimizer.step()  # Update weights using optimizer
-    return loss.item()
+from jax.debug import breakpoint as jst
+from pdb import set_trace as st
 
-# Initialize the MLP
+def compute_discounted_rewards(rewards, gamma):
+    discounted_rewards = []
+    cumulative = 0
+    for r in reversed(rewards):
+        cumulative = r + gamma * cumulative
+        discounted_rewards.insert(0, cumulative)
+    return torch.tensor(discounted_rewards, dtype=torch.float32)
 
-# Initialize optimizer
 
-# Example loop interacting with the environment
-def run_environment(env, mlp, n_steps=100):
-    state = env.reset(jax.random.PRNGKey(0))  # Reset environment and get initial state
-    observation = state.obs  # Get the initial observation
+def train(env, policy_net, policy_optimizer, value_net, value_optimizer, num_envs=4, gamma=0.9):
+    for episode in range(100):  # Number of episodes
+        obs = env.reset()
 
-    for _ in range(n_steps):
-        action = mlp.select_action(observation)  # Get action from MLP
-        state = env.step(state, action)  # Take a step in the environment
-        observation = state.obs  # Update the observation from the environment
-        print("Reward:", state.reward)  # Print the reward at each step
+        # Storage for trajectory data
+        all_rewards = []
+        all_log_probs = []
+        all_values = []
 
-# Example of how to run it in your environment
-# Assuming you have the `Humanoid` environment defined:
-# env = Humanoid()
-# run_environment(env)
+        reward_till_done=[]
+
+        for step in range(1000):
+            # Sample actions from the policy
+            action, log_prob = policy_net.select_action(observation, env)
+            value = value_net(obs)
+
+            obs_next, rewards, dones, _ = env.step(action)
+            
+            # Store results
+            all_rewards.append(rewards)
+            all_log_probs.append(log_prob)
+            all_values.append(value)
+
+            # if not dones.any(): reward_till_done.append(rewards)
+            # else:
+            #     reward_till_done=torch.stack(reward_till_done).transpose(0, 1)
+            #     jst()
+            
+            # Prepare for the next step
+            obs = obs_next
+
+        # Convert lists to tensors
+        rewards = torch.stack(all_rewards).transpose(0, 1)  # shape [num_envs, num_steps]
+        log_probs = torch.stack(all_log_probs).transpose(0, 1)  # shape [num_envs, num_steps]
+        values = torch.stack(all_values).transpose(0, 1)  # shape [num_envs, num_steps]
+
+        # Calculate discounted returns and advantages
+        discounted_returns = torch.zeros_like(rewards)
+
+        for i in range(num_envs):
+            discounted_returns[i] = compute_discounted_rewards(rewards[i].detach().cpu().numpy(), gamma)
+        advantages = discounted_returns.unsqueeze(-1) - values.detach()
+
+        # Policy Loss
+        policy_loss = -(log_probs * advantages).mean()
+
+        # Value Loss
+        value_loss = nn.functional.mse_loss(values, discounted_returns.unsqueeze(-1))
+
+        # Backpropagation
+        policy_optimizer.zero_grad()
+        policy_loss.backward()
+        policy_optimizer.step()
+
+        value_optimizer.zero_grad()
+        value_loss.backward()
+        value_optimizer.step()
+
+        # Logging
+        avg_reward = rewards.sum(dim=1).mean().item()
+        print(f"Episode {episode}, Average Reward: {avg_reward:.2f}")
+
+def evaluate_policy(policy_net, env, num_steps=100):
+    total_rewards = []
+    obs = env.reset()
+    
+    for _ in range(num_steps):
+        # Compute actions using the policy network
+        # with torch.no_grad():
+        action, log_prob = policy_net.select_action(observation, env)
+        # action = action.detach().cpu().numpy()  # Convert to numpy for env.step()
+        obs, rewards, dones, _ = env.step(action)
+        total_rewards.append(rewards.detach().cpu().numpy())
+    
+    # Calculate total rewards per episode
+    total_rewards = np.array(total_rewards).sum(axis=0)
+    return total_rewards
 
 if __name__=='__main__':
     envs.register_environment('custom_humanoid', customHumanoid)
-    env = envs.create('custom_humanoid', 100, batch_size=4)
+    env = envs.create('custom_humanoid', 1000, batch_size=4, debug=True)
     env = gym_wrapper.VectorGymWrapper(env)
     env = torch_wrapper.TorchWrapper(env, device='cuda')
 
@@ -69,30 +132,26 @@ if __name__=='__main__':
     optimizer_actor = optim.Adam(mlp.parameters(), lr=1e-3)
     optimizer_critic = optim.Adam(value_fn.parameters(), lr=1e-3)
 
-    target_value=torch.zeros((4, 1)).to('cuda')
+    if not (osp.exists('./policy_net.pth') or osp.exists('./value_net.pth')):
+        train(env, mlp, optimizer_actor, value_fn, optimizer_critic)
 
-    # observation = state.obs  # Initial observation
+        torch.save(mlp.state_dict(), './policy_net.pth')
+        torch.save(value_fn.state_dict(), './value_net.pth')
+    else:
+        mlp.load_weights('./policy_net.pth')
+        value_fn.load_weights('./value_net.pth')
 
-    for step in range(100):  # Run for 100 steps
-        # observation=np.array(observation)
-        action, log_probs = mlp.select_action(observation, env)  # Get the action from the MLP
-        value=value_fn(observation)
-
-        observation, reward, done, _ = env.step(action)  # Step the environment with the selected action
-
-        # import pdb; pdb.set_trace()
-
-
-
-        target_value+=reward.reshape(4, 1)
-
-        loss=target_value-value
-
-        # observation = state.obs  # Update the observation
-        # print("loss:", loss)  # Print the reward at each step
+    average_rewards = []
+    for _ in range(2):
+        rewards = evaluate_policy(mlp, env)
+        average_rewards.append(np.mean(rewards))
+    
+    # Print results
+    average_reward = np.mean(average_rewards)
+    print(f"Average reward over {2} episodes: {average_reward:.2f}")
 
     # envs.register_environment('custom_humanoid', Humanoid)
-    _env = envs.create('custom_humanoid', 100)
+    _env = envs.create('custom_humanoid', 100, debug=True)
     _env = gym_wrapper.GymWrapper(_env)
     _env = torch_wrapper.TorchWrapper(_env, device='cuda')
     

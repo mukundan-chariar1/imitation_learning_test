@@ -8,6 +8,9 @@ import torch.nn.functional as F
 import jax
 from jax import numpy as jp
 
+from jax.debug import breakpoint as jst
+from pdb import set_trace as st
+
 # if np.random.rand() < current_epsilon:
 #     # Take random action with probability epsilon
 #     action = env.action_space.sample()
@@ -46,6 +49,14 @@ class MLP(nn.Module):
         action=torch.tanh(action)
             
         return action, log_prob  # Return action as a NumPy array for the environment
+    
+    def load_weights(self, path):
+        """Loads weights from a specified path into the network."""
+        try:
+            self.load_state_dict(torch.load(path))
+            print(f"Weights loaded successfully from {path}")
+        except Exception as e:
+            print(f"Error loading weights: {e}")
 
 class ValueFunction(nn.Module):
     def __init__(self, state_dim, hidden_dim=64):
@@ -61,6 +72,14 @@ class ValueFunction(nn.Module):
         x = torch.relu(self.fc2(x))
         value = self.fc3(x)  # Output a single value for the given state
         return value
+    
+    def load_weights(self, path):
+        """Loads weights from a specified path into the network."""
+        try:
+            self.load_state_dict(torch.load(path))
+            print(f"Weights loaded successfully from {path}")
+        except Exception as e:
+            print(f"Error loading weights: {e}")
     
 def train_actor_critic(env, actor, critic, actor_optimizer, critic_optimizer, gamma=0.99, num_episodes=500):
     for episode in range(num_episodes):

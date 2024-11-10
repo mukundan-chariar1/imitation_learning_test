@@ -34,7 +34,9 @@ class customHumanoid(PipelineEnv):
     def step(self, state: State, action: jax.Array) -> State:
         state_prev = state.pipeline_state
         new_state=self.pipeline_step(state_prev, action)
-        reward=new_state.x.pos[0, 2]
+        upward_reward=jp.where(new_state.x.pos[0, :] >= jp.ones(3)*0.5, new_state.x.pos[0, :]**2, -jp.ones(3)*100)[-1]
+        vel_reward=(state_prev.root_com[:, -1]-new_state.root_com[:, -1])*self.dt
+        contact_reward=(new_state.contact.link_idx[-1].shape[0]-2)**3 if new_state.contact.link_idx[-1].shape[0]<=4 else -100
         # print(reward) 
         # dict_keys(['q', 'qd', 'x', 'xd', 'contact', 'root_com', 'cinr', 'cd', 'cdof', 'cdofd', 'mass_mx', 'mass_mx_inv', 'con_jac', 'con_diag', 'con_aref', 'qf_smooth', 'qf_constraint', 'qdd'])
             # x dict_keys(['pos', 'rot'])
@@ -43,11 +45,21 @@ class customHumanoid(PipelineEnv):
             # cd dict_keys(['ang', 'vel'])
             # cdof dict_keys(['ang', 'vel'])
             # cdofd dict_keys(['ang', 'vel'])
+            # contact dict_keys(['dist', 'pos', 'frame', 'includemargin', 'friction', 'solref', 'solreffriction', 'solimp', 'dim', 'geom1', 'geom2', 'geom', 'efc_address', 'link_idx', 'elasticity'])
 
-        jst()
+        # jst()
+
+        # if new_state.contact is not None: jst()
+
+        # jax.debug.print("idxs: {}", new_state.contact.link_idx)
+
+        reward=upward_reward-contact_reward+vel_reward.sum(-1)
         
         obs = self._get_obs(new_state, action)
-        done, zero = jp.zeros(2)
+        # done, zero = jp.zeros(2)
+        # if not (new_state.contact.link_idx[-1].shape[0]<=4 or upward_reward>0):
+        #     jst()
+        done=float(not (new_state.contact.link_idx[-1].shape[0]<=4 or upward_reward>0))
 
         return state.replace(
             pipeline_state=new_state, obs=obs, reward=reward, done=done
