@@ -17,3 +17,10 @@ Attributes of state for generalized
     qf_smooth: (qd_size,) smooth dynamics force
     qf_constraint: (qd_size,) force from constraints (collision etc)
     qdd: (qd_size,) joint acceleration vector
+
+Attributes of state in general
+    q: (q_size,) joint position vector
+    qd: (qd_size,) joint velocity vector
+    x: (num_links,) link position in world frame
+    xd: (num_links,) link velocity in world frame
+    contact: calculated contacts
