@@ -24,17 +24,21 @@ from pdb import set_trace as st
 
 # Define the MLP architecture
 class MLP(nn.Module):
-    def __init__(self, input_size, hidden_size, output_size):
+    def __init__(self, input_size, hidden_size, output_size, num_layers=3):
         super(MLP, self).__init__()
-        self.fc1 = nn.Linear(input_size, hidden_size)
-        self.fc2 = nn.Linear(hidden_size, hidden_size)
-        self.fc3 = nn.Linear(hidden_size, output_size*2)
+        self.layers=[nn.Linear(input_size, hidden_size), nn.ReLU()]
+        for i in range(num_layers):
+            self.layers.extend([nn.Linear(hidden_size, hidden_size), nn.ReLU()])
+        self.layers.append(nn.Linear(hidden_size, output_size*2))
+
+        self.relu=nn.ReLU()
+
+        self.layers=nn.Sequential(*self.layers)
         self.softmax=torch.nn.Softmax(-1)
 
     def forward(self, x):
-        x = torch.relu(self.fc1(x))  # First hidden layer with ReLU activation
-        x = torch.relu(self.fc2(x))  # Second hidden layer with ReLU activation
-        logits = torch.relu(self.fc3(x))  # Output layer, also tanh for actions in [-1, 1] range
+        x=self.layers(x)
+        logits = self.relu(x)  # Output layer, also tanh for actions in [-1, 1] range
         probs = self.softmax(x)
         return logits, probs
 
@@ -59,18 +63,19 @@ class MLP(nn.Module):
             print(f"Error loading weights: {e}")
 
 class ValueFunction(nn.Module):
-    def __init__(self, state_dim, hidden_dim=64):
+    def __init__(self, state_dim, hidden_dim=64, num_layers=3):
         super(ValueFunction, self).__init__()
         # Define a simple MLP with two hidden layers
-        self.fc1 = nn.Linear(state_dim, hidden_dim)
-        self.fc2 = nn.Linear(hidden_dim, hidden_dim)
-        self.fc3 = nn.Linear(hidden_dim, 1)  # Output a single value
+        self.layers=[nn.Linear(state_dim, hidden_dim), nn.ReLU()]
+        for i in range(num_layers):
+            self.layers.extend([nn.Linear(hidden_dim, hidden_dim), nn.ReLU()])
+        self.layers.append(nn.Linear(hidden_dim, 1))  # Output a single value
+
+        self.layers=nn.Sequential(*self.layers)
 
     def forward(self, state):
         # Forward pass through the network
-        x = torch.relu(self.fc1(state))
-        x = torch.relu(self.fc2(x))
-        value = self.fc3(x)  # Output a single value for the given state
+        value = self.layers(state)  # Output a single value for the given state
         return value
     
     def load_weights(self, path):

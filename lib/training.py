@@ -19,12 +19,20 @@ from etils import epath
 import jax
 from jax import numpy as jp
 import mujoco
+import gym
+from gym.vector import SyncVectorEnv
 
 import os
 import os.path as osp
 
 from jax.debug import breakpoint as jst
 from pdb import set_trace as st
+
+import gc
+
+def make_custom_env():
+    # Replace `customHumanoid` with your environment constructor
+    return customHumanoid()
 
 def compute_discounted_rewards(rewards, gamma):
     discounted_rewards = []
@@ -35,8 +43,8 @@ def compute_discounted_rewards(rewards, gamma):
     return torch.tensor(discounted_rewards, dtype=torch.float32)
 
 
-def train(env, policy_net, policy_optimizer, value_net, value_optimizer, num_envs=4, gamma=0.9):
-    for episode in range(100):  # Number of episodes
+def train(env, policy_net, policy_optimizer, value_net, value_optimizer, num_envs=4, gamma=0.9, episodes=100):
+    for episode in range(episodes):  # Number of episodes
         obs = env.reset()
 
         # Storage for trajectory data
@@ -61,6 +69,8 @@ def train(env, policy_net, policy_optimizer, value_net, value_optimizer, num_env
             # if not dones.any(): reward_till_done.append(rewards)
             # else:
             #     reward_till_done=torch.stack(reward_till_done).transpose(0, 1)
+            #     jst()
+            # if dones.any():
             #     jst()
             
             # Prepare for the next step
@@ -96,6 +106,8 @@ def train(env, policy_net, policy_optimizer, value_net, value_optimizer, num_env
         # Logging
         avg_reward = rewards.sum(dim=1).mean().item()
         print(f"Episode {episode}, Average Reward: {avg_reward:.2f}")
+        torch.cuda.empty_cache()
+        gc.collect()
 
 def evaluate_policy(policy_net, env, num_steps=100):
     total_rewards = []
@@ -115,8 +127,16 @@ def evaluate_policy(policy_net, env, num_steps=100):
 
 if __name__=='__main__':
     envs.register_environment('custom_humanoid', customHumanoid)
-    env = envs.create('custom_humanoid', 1000, batch_size=4, debug=True)
-    env = gym_wrapper.VectorGymWrapper(env)
+    num_envs=4
+    env = envs.create('custom_humanoid', 1000, batch_size=num_envs)
+    # env = envs.create('humanoid', 1000, batch_size=1, debug=True)
+    env = gym_wrapper.GymWrapper(env)
+    # num_envs = 4
+    # env_fns = [make_custom_env for _ in range(num_envs)]
+
+    # # Create the SyncVectorEnv
+    # env = SyncVectorEnv(env_fns)
+
     env = torch_wrapper.TorchWrapper(env, device='cuda')
 
     # batch_size = 32  # Number of experiences per batch
@@ -124,7 +144,7 @@ if __name__=='__main__':
 
     observation = env.reset() 
     input_size = env.observation_space.shape[-1]  # Example input size (could be different based on your environment)
-    hidden_size = 64  # Hidden layer size
+    hidden_size = 128  # Hidden layer size
     output_size = env.action_space.shape[-1]  # Example output size (matching the number of actions in the Humanoid)
 
     mlp = MLP(input_size, hidden_size, output_size).to('cuda')
@@ -132,8 +152,11 @@ if __name__=='__main__':
     optimizer_actor = optim.Adam(mlp.parameters(), lr=1e-3)
     optimizer_critic = optim.Adam(value_fn.parameters(), lr=1e-3)
 
+    # st()
+    # jst()
+
     if not (osp.exists('./policy_net.pth') or osp.exists('./value_net.pth')):
-        train(env, mlp, optimizer_actor, value_fn, optimizer_critic)
+        train(env, mlp, optimizer_actor, value_fn, optimizer_critic, episodes=1000, num_envs=num_envs)
 
         torch.save(mlp.state_dict(), './policy_net.pth')
         torch.save(value_fn.state_dict(), './value_net.pth')
@@ -151,7 +174,8 @@ if __name__=='__main__':
     print(f"Average reward over {2} episodes: {average_reward:.2f}")
 
     # envs.register_environment('custom_humanoid', Humanoid)
-    _env = envs.create('custom_humanoid', 100, debug=True)
+    _env = envs.create('custom_humanoid', 100)
+    # _env = envs.create('humanoid', 100, debug=True)
     _env = gym_wrapper.GymWrapper(_env)
     _env = torch_wrapper.TorchWrapper(_env, device='cuda')
     

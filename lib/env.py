@@ -12,12 +12,17 @@ from pdb import set_trace as st
 class customHumanoid(PipelineEnv):
     def __init__(self, **kwargs):
 
-        path = epath.resource_path('brax') / 'envs/assets/humanoid.xml'
+        # path = epath.resource_path('brax') / 'envs/assets/humanoid.xml'
+        path = 'lib/model/humanoid.xml'
         sys=mjcf.load(path)
 
         kwargs['n_frames'] = kwargs.get('n_frames', 5)
 
         super().__init__(sys=sys, backend='generalized', **kwargs)
+
+        self._healthy_reward=5.0
+        self._upward_reward_weight=10
+        self._vel_reward_weight=5
 
     def reset(self, rng: jax.Array) -> State:
         rng, rng1, rng2 = jax.random.split(rng, 3)
@@ -29,38 +34,22 @@ class customHumanoid(PipelineEnv):
 
         obs = self._get_obs(pipeline_state, jp.zeros(self.sys.act_size()))
         reward, done, zero = jp.zeros(3)
-        return State(pipeline_state, obs, reward, done)
+        metrics={'counter': zero}
+        return State(pipeline_state, obs, reward, done, metrics)
     
     def step(self, state: State, action: jax.Array) -> State:
         state_prev = state.pipeline_state
+        count=state.metrics['counter']+1
         new_state=self.pipeline_step(state_prev, action)
-        upward_reward=jp.where(new_state.x.pos[0, :] >= jp.ones(3)*0.5, new_state.x.pos[0, :]**2, -jp.ones(3)*100)[-1]
-        vel_reward=(state_prev.root_com[:, -1]-new_state.root_com[:, -1])*self.dt
-        contact_reward=(new_state.contact.link_idx[-1].shape[0]-2)**3 if new_state.contact.link_idx[-1].shape[0]<=4 else -100
-        # print(reward) 
-        # dict_keys(['q', 'qd', 'x', 'xd', 'contact', 'root_com', 'cinr', 'cd', 'cdof', 'cdofd', 'mass_mx', 'mass_mx_inv', 'con_jac', 'con_diag', 'con_aref', 'qf_smooth', 'qf_constraint', 'qdd'])
-            # x dict_keys(['pos', 'rot'])
-            # cinr dict_keys(['transform', 'i', 'mass'])
-                # transform dict_keys(['pos', 'rot'])
-            # cd dict_keys(['ang', 'vel'])
-            # cdof dict_keys(['ang', 'vel'])
-            # cdofd dict_keys(['ang', 'vel'])
-            # contact dict_keys(['dist', 'pos', 'frame', 'includemargin', 'friction', 'solref', 'solreffriction', 'solimp', 'dim', 'geom1', 'geom2', 'geom', 'efc_address', 'link_idx', 'elasticity'])
+        upward_reward=jp.where(new_state.x.pos[0, :] >= jp.ones(3)*0.5, new_state.x.pos[0, :]**2*self._healthy_reward, -jp.ones(3)*100)[-1]
+        vel_reward=(state_prev.root_com[0, -1]-new_state.root_com[0, -1])*self.dt*self._vel_reward_weight*jp.where(count>=15, 1, -1)
 
-        # jst()
-
-        # if new_state.contact is not None: jst()
-
-        # jax.debug.print("idxs: {}", new_state.contact.link_idx)
-
-        reward=upward_reward-contact_reward+vel_reward.sum(-1)
+        reward=upward_reward+vel_reward+self._healthy_reward
         
         obs = self._get_obs(new_state, action)
-        # done, zero = jp.zeros(2)
-        # if not (new_state.contact.link_idx[-1].shape[0]<=4 or upward_reward>0):
-        #     jst()
-        done=float(not (new_state.contact.link_idx[-1].shape[0]<=4 or upward_reward>0))
+        done=jp.where(new_state.x.pos[0, 2] >= jp.ones(1)*0.5, jp.zeros(1), jp.ones(1))[0]
 
+        state.metrics.update(counter=count)
         return state.replace(
             pipeline_state=new_state, obs=obs, reward=reward, done=done
         )
