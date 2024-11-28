@@ -6,6 +6,8 @@ import numpy as np
 from lib.env import *
 from lib.network import *
 from lib.viz import *
+# from lib.edited_brax import gym_wrapper as _gym_wrapper
+# from lib.edited_brax import torch_wrapper as _torch_wrapper
 import random
 
 from brax import actuator
@@ -43,7 +45,7 @@ def compute_discounted_rewards(rewards, gamma):
     return torch.tensor(discounted_rewards, dtype=torch.float32)
 
 
-def train(env, policy_net, policy_optimizer, value_net, value_optimizer, num_envs=4, gamma=0.9, episodes=100):
+def train(env, policy_net, policy_optimizer, value_net, value_optimizer, num_envs=4, gamma=0.1, episodes=100):
     for episode in range(episodes):  # Number of episodes
         obs = env.reset()
 
@@ -52,29 +54,21 @@ def train(env, policy_net, policy_optimizer, value_net, value_optimizer, num_env
         all_log_probs = []
         all_values = []
 
-        reward_till_done=[]
+        done=False
 
-        for step in range(1000):
+
+        while not done:
             # Sample actions from the policy
-            action, log_prob = policy_net.select_action(observation, env)
-            value = value_net(obs)
+            action, log_prob = policy_net.select_action(obs, env)
 
-            obs_next, rewards, dones, _ = env.step(action)
-            
-            # Store results
+            # for u in range(10):
+            value = value_net(obs)
+            obs, rewards, done, _ = env.step(action)
+            if done: break
+
             all_rewards.append(rewards)
             all_log_probs.append(log_prob)
             all_values.append(value)
-
-            # if not dones.any(): reward_till_done.append(rewards)
-            # else:
-            #     reward_till_done=torch.stack(reward_till_done).transpose(0, 1)
-            #     jst()
-            # if dones.any():
-            #     jst()
-            
-            # Prepare for the next step
-            obs = obs_next
 
         # Convert lists to tensors
         rewards = torch.stack(all_rewards).transpose(0, 1)  # shape [num_envs, num_steps]
@@ -88,7 +82,7 @@ def train(env, policy_net, policy_optimizer, value_net, value_optimizer, num_env
             discounted_returns[i] = compute_discounted_rewards(rewards[i].detach().cpu().numpy(), gamma)
         advantages = discounted_returns.unsqueeze(-1) - values.detach()
 
-        # Policy Loss
+        # Policy Loss -(log_probs*rewards.unsqueeze(-1)).mean()
         policy_loss = -(log_probs * advantages).mean()
 
         # Value Loss
@@ -104,7 +98,7 @@ def train(env, policy_net, policy_optimizer, value_net, value_optimizer, num_env
         value_optimizer.step()
 
         # Logging
-        avg_reward = rewards.sum(dim=1).mean().item()
+        avg_reward = rewards[:, :-1].sum(dim=1).mean().item()
         print(f"Episode {episode}, Average Reward: {avg_reward:.2f}")
         torch.cuda.empty_cache()
         gc.collect()
@@ -112,14 +106,15 @@ def train(env, policy_net, policy_optimizer, value_net, value_optimizer, num_env
 def evaluate_policy(policy_net, env, num_steps=100):
     total_rewards = []
     obs = env.reset()
-    
-    for _ in range(num_steps):
-        # Compute actions using the policy network
-        # with torch.no_grad():
-        action, log_prob = policy_net.select_action(observation, env)
-        # action = action.detach().cpu().numpy()  # Convert to numpy for env.step()
-        obs, rewards, dones, _ = env.step(action)
-        total_rewards.append(rewards.detach().cpu().numpy())
+    done=False
+
+    with torch.no_grad():
+        while not done:
+            action, log_prob = policy_net.select_action(obs, env)
+            # for u in range(10):
+            obs, rewards, done, _ = env.step(action)
+            total_rewards.append(rewards.detach().cpu().numpy())
+            if done: break
     
     # Calculate total rewards per episode
     total_rewards = np.array(total_rewards).sum(axis=0)
@@ -127,20 +122,12 @@ def evaluate_policy(policy_net, env, num_steps=100):
 
 if __name__=='__main__':
     envs.register_environment('custom_humanoid', customHumanoid)
-    num_envs=4
-    env = envs.create('custom_humanoid', 1000, batch_size=num_envs)
-    # env = envs.create('humanoid', 1000, batch_size=1, debug=True)
+    num_envs=1
+    # env = envs.create('custom_humanoid', 1000, batch_size=num_envs)
+    env = envs.create('humanoid', 1000, batch_size=num_envs)
     env = gym_wrapper.GymWrapper(env)
-    # num_envs = 4
-    # env_fns = [make_custom_env for _ in range(num_envs)]
-
-    # # Create the SyncVectorEnv
-    # env = SyncVectorEnv(env_fns)
 
     env = torch_wrapper.TorchWrapper(env, device='cuda')
-
-    # batch_size = 32  # Number of experiences per batch
-    # observations = torch.randn(batch_size, input_size)
 
     observation = env.reset() 
     input_size = env.observation_space.shape[-1]  # Example input size (could be different based on your environment)
@@ -149,34 +136,34 @@ if __name__=='__main__':
 
     mlp = MLP(input_size, hidden_size, output_size).to('cuda')
     value_fn = ValueFunction(input_size, hidden_size).to('cuda')
-    optimizer_actor = optim.Adam(mlp.parameters(), lr=1e-3)
-    optimizer_critic = optim.Adam(value_fn.parameters(), lr=1e-3)
+    optimizer_actor = optim.Adam(mlp.parameters(), lr=5e-3)
+    optimizer_critic = optim.Adam(value_fn.parameters(), lr=5e-3)
 
-    # st()
-    # jst()
+    os.makedirs('./weights', exist_ok=True)
 
-    if not (osp.exists('./policy_net.pth') or osp.exists('./value_net.pth')):
-        train(env, mlp, optimizer_actor, value_fn, optimizer_critic, episodes=1000, num_envs=num_envs)
+    if not (osp.exists('./weights/policy_net.pth') or osp.exists('./weights/value_net.pth')):
+        train(env, mlp, optimizer_actor, value_fn, optimizer_critic, episodes=100, num_envs=num_envs)
 
-        torch.save(mlp.state_dict(), './policy_net.pth')
-        torch.save(value_fn.state_dict(), './value_net.pth')
+        torch.save(mlp.state_dict(), './weights/policy_net.pth')
+        torch.save(value_fn.state_dict(), './weights/value_net.pth')
     else:
-        mlp.load_weights('./policy_net.pth')
-        value_fn.load_weights('./value_net.pth')
+        mlp.load_weights('./weights/policy_net.pth')
+        value_fn.load_weights('./weights/value_net.pth')
 
-    average_rewards = []
-    for _ in range(2):
-        rewards = evaluate_policy(mlp, env)
-        average_rewards.append(np.mean(rewards))
+    # average_rewards = []
+    # for _ in range(2):
+    #     rewards = evaluate_policy(mlp, env)
+    #     average_rewards.append(np.mean(rewards))
     
-    # Print results
-    average_reward = np.mean(average_rewards)
-    print(f"Average reward over {2} episodes: {average_reward:.2f}")
+    # # Print results
+    # average_reward = np.mean(average_rewards)
+    # print(f"Average reward over {2} episodes: {average_reward:.2f}")
 
-    # envs.register_environment('custom_humanoid', Humanoid)
-    _env = envs.create('custom_humanoid', 100)
-    # _env = envs.create('humanoid', 100, debug=True)
-    _env = gym_wrapper.GymWrapper(_env)
-    _env = torch_wrapper.TorchWrapper(_env, device='cuda')
+    # viz_env = envs.create('custom_humanoid', 100)
+    viz_env = envs.create('humanoid', 1000, batch_size=num_envs)
+    viz_env = gym_wrapper.GymWrapper(viz_env)
+    viz_env = torch_wrapper.TorchWrapper(viz_env, device='cuda')
     
-    save_video_unroll(_env, mlp, 100, './rollout.mp4')
+    save_video_unroll(viz_env, mlp, 100, './rollout.mp4')
+
+    # create_interactive_rollout(viz_env, mlp)

@@ -5,6 +5,25 @@ import torch
 import brax
 from brax.envs import wrappers
 
+import gym
+import base64
+from IPython.display import HTML
+from IPython.display import display
+import matplotlib.pyplot as plt
+from PIL import Image
+from io import BytesIO
+
+from IPython.display import HTML, clear_output
+
+import flax
+from brax import envs
+from brax.io import model
+from brax.io import json
+from brax.io import html
+
+from jax.debug import breakpoint as jst
+from pdb import set_trace as st
+
 @torch.no_grad
 def save_video_unroll(env, policy, num_steps=200, video_path="rollout.mp4"):
     """
@@ -27,12 +46,12 @@ def save_video_unroll(env, policy, num_steps=200, video_path="rollout.mp4"):
         # action = action.detach().cpu().numpy()  # Convert action to numpy for gym compatibility
 
         # Take a step in the environment
-        obs, reward, done, _ = env.step(action)
-
-        # Render the frame, convert to BGR (for cv2), and add to frames list
+        # for u in range(10):
+        obs, rewards, done, _ = env.step(action)
         frame = env.render(mode='rgb_array')
         frame = cv2.cvtColor(frame, cv2.COLOR_RGB2BGR)  # Convert to BGR for OpenCV
         frames.append(frame)
+        if done: break
 
         if done:
             break
@@ -42,3 +61,21 @@ def save_video_unroll(env, policy, num_steps=200, video_path="rollout.mp4"):
     print(f"Video saved to {video_path}")
 
     return video_path
+
+def create_interactive_rollout(env, policy, num_steps=200):
+
+    rollout = []
+    # pipeline_state, obs = env.reset()
+    obs = env.reset()
+    done=False
+    while not done:
+        # rollout.append(pipeline_state)
+        action, log_probs = policy.select_action(obs, env)
+        obs, rewards, done, _ = env.step(action)
+        env.render()
+        # pipeline_state, obs, rewards, done, _ = env.step(action)
+        
+
+    # display(HTML(html.render(env.sys_.tree_replace({'opt.timestep': env.dt_}), rollout)))
+    # env.sys_.tree_replace({'opt.timestep': env.dt_}), rollout)
+    # env.render()

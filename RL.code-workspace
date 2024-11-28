@@ -5,6 +5,9 @@
 		},
 		{
 			"path": "../reinforcement-learning-an-introduction"
+		},
+		{
+			"path": "../CS285-DeepRL"
 		}
 	],
 	"settings": {}

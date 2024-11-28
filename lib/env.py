@@ -41,11 +41,11 @@ class customHumanoid(PipelineEnv):
         state_prev = state.pipeline_state
         count=state.metrics['counter']+1
         new_state=self.pipeline_step(state_prev, action)
-        upward_reward=jp.where(new_state.x.pos[0, :] >= jp.ones(3)*0.5, new_state.x.pos[0, :]**2*self._healthy_reward, -jp.ones(3)*100)[-1]
-        vel_reward=(state_prev.root_com[0, -1]-new_state.root_com[0, -1])*self.dt*self._vel_reward_weight*jp.where(count>=15, 1, -1)
+        # upward_reward=jp.where(new_state.x.pos[0, :] >= jp.ones(3)*0.5, new_state.x.pos[0, :]**2*self._upward_reward_weight, 0)[-1]
+        vel_reward=(state_prev.root_com[0, -1]-new_state.root_com[0, -1])*self.dt*self._vel_reward_weight#*jp.where(count>=15, 1, -1)
 
-        reward=upward_reward+vel_reward+self._healthy_reward
-        
+        reward=vel_reward+self._healthy_reward
+
         obs = self._get_obs(new_state, action)
         done=jp.where(new_state.x.pos[0, 2] >= jp.ones(1)*0.5, jp.zeros(1), jp.ones(1))[0]
 
