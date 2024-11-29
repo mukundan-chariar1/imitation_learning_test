@@ -12,17 +12,17 @@ from pdb import set_trace as st
 class customHumanoid(PipelineEnv):
     def __init__(self, **kwargs):
 
-        # path = epath.resource_path('brax') / 'envs/assets/humanoid.xml'
-        path = 'lib/model/humanoid.xml'
+        path = epath.resource_path('brax') / 'envs/assets/humanoid.xml'
+        # path = 'lib/model/humanoid.xml'
         sys=mjcf.load(path)
 
         kwargs['n_frames'] = kwargs.get('n_frames', 5)
 
-        super().__init__(sys=sys, backend='generalized', **kwargs)
+        super().__init__(sys=sys, **kwargs)
 
         self._healthy_reward=5.0
-        self._upward_reward_weight=10
-        self._vel_reward_weight=5
+        self._upward_reward_weight=5
+        self._vel_reward_weight=15
 
     def reset(self, rng: jax.Array) -> State:
         rng, rng1, rng2 = jax.random.split(rng, 3)
@@ -41,10 +41,10 @@ class customHumanoid(PipelineEnv):
         state_prev = state.pipeline_state
         count=state.metrics['counter']+1
         new_state=self.pipeline_step(state_prev, action)
-        # upward_reward=jp.where(new_state.x.pos[0, :] >= jp.ones(3)*0.5, new_state.x.pos[0, :]**2*self._upward_reward_weight, 0)[-1]
-        vel_reward=(state_prev.root_com[0, -1]-new_state.root_com[0, -1])*self.dt*self._vel_reward_weight#*jp.where(count>=15, 1, -1)
+        upward_reward=jp.where(new_state.x.pos[0, :] >= jp.ones(3), new_state.x.pos[0, :]**2*self._upward_reward_weight, 0)[-1]
+        vel_reward=(new_state.root_com[0, -1]-state_prev.root_com[0, -1])*self.dt*self._vel_reward_weight#*jp.where(count>=15, 1, -1)
 
-        reward=vel_reward+self._healthy_reward
+        reward=vel_reward+upward_reward
 
         obs = self._get_obs(new_state, action)
         done=jp.where(new_state.x.pos[0, 2] >= jp.ones(1)*0.5, jp.zeros(1), jp.ones(1))[0]
