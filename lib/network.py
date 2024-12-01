@@ -11,30 +11,48 @@ from jax import numpy as jp
 from jax.debug import breakpoint as jst
 from pdb import set_trace as st
 
-# if np.random.rand() < current_epsilon:
-#     # Take random action with probability epsilon
-#     action = env.action_space.sample()
-#     log_prob = None  # No log prob for random actions
-# else:
-#     # Actor chooses action based on policy
-#     action_probs = actor(state_tensor)
-#     action_dist = torch.distributions.Categorical(action_probs)
-#     action = action_dist.sample()  # Sample action according to action probabilities
-#     log_prob = action_dist.log_prob(action)
+class ActorCritic(nn.Module):
+    def __init__(self, input_size, hidden_size, output_size, num_layers=3):
+        super(ActorCritic, self).__init__()
 
-# Define the MLP architecture
+        self.actor_layers=[nn.Linear(input_size, hidden_size), nn.ReLU()]
+        for i in range(num_layers):
+            self.actor_layers.extend([nn.Linear(hidden_size, hidden_size), nn.ReLU()])
+        self.actor_layers.extend([nn.Linear(hidden_size, output_size), nn.ReLU(), torch.nn.Softmax(-1)])
+
+        self.actor_layers=nn.Sequential(*self.actor_layers)
+
+        self.critic_layers=[nn.Linear(input_size, hidden_size), nn.ReLU()]
+        for i in range(num_layers):
+            self.critic_layers.extend([nn.Linear(hidden_size, hidden_size), nn.ReLU()])
+        self.critic_layers.append(nn.Linear(hidden_size, 1))
+
+        self.critic_layers=nn.Sequential(*self.critic_layers)
+
+    def select_action(self, obs):
+        action_probs=self.actor_layers(obs)
+        dist=Categorical(action_probs)
+        action=dist.sample()
+        log_probs=dist.log_prob(action)
+
+        return action, log_probs
+    
+    def estimate_value(self, obs):
+        value=self.critic_layers(obs)
+
+        return value
+
+
+
 class MLP(nn.Module):
     def __init__(self, input_size, hidden_size, output_size, num_layers=3):
         super(MLP, self).__init__()
         self.layers=[nn.Linear(input_size, hidden_size), nn.ReLU()]
         for i in range(num_layers):
             self.layers.extend([nn.Linear(hidden_size, hidden_size), nn.ReLU()])
-        self.layers.append(nn.Linear(hidden_size, output_size*2))
-
-        self.relu=nn.ReLU()
+        self.layers.extend([nn.Linear(hidden_size, output_size*2), nn.ReLU(), torch.nn.Softmax(-1)])
 
         self.layers=nn.Sequential(*self.layers)
-        self.softmax=torch.nn.Softmax(-1)
 
     def forward(self, x):
         x=self.layers(x)

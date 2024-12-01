@@ -1,0 +1,15 @@
+*.zip
+*.tar.gz
+dataset/
+lib/plots/
+output*/
+**/__pycache__/
+test.py
+
+*.mp4
+*.pt
+*.pth
+*.pkl
+
+# Ignore Git files
+.git/
