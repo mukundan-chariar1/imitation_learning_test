@@ -1,7 +1,7 @@
 <mujoco model="humanoid">
     <compiler angle="degree" inertiafromgeom="true"/>
     <default>
-        <joint armature="1" damping="1" limited="true"/>
+        <joint armature="1" damping="1" stiffness="2" limited="true"/>
         <geom condim="3" material="geom" rgba="0.4 0.33 0.26 1.0"/>
         <motor ctrllimited="true" ctrlrange="-.4 .4"/>
     </default>

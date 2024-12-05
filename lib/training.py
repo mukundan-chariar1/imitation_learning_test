@@ -116,15 +116,16 @@ if __name__=='__main__':
     DISCOUNT_FACTOR = 0.99
 
     #number of episodes to run
-    NUM_EPISODES = 1000
+    NUM_EPISODES = int(10e9)
 
     #max steps per episode
-    MAX_STEPS = 10000
+    MAX_STEPS = 1000
 
     #device to run model on 
     DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
 
-    envs.register_environment('custom_humanoid', customHumanoid)
+    # envs.register_environment('custom_humanoid', customHumanoid)
+    envs.register_environment('custom_humanoid', SMPLHumanoid)
     num_envs=1
     env = envs.create('custom_humanoid', 1000, batch_size=num_envs, backend='generalized')
     env = gym_wrapper.GymWrapper(env)
@@ -143,6 +144,8 @@ if __name__=='__main__':
 
     # if not (osp.exists('./weights/policy_net.pth') or osp.exists('./weights/value_net.pth')):
     train(env, ac, optimizer)
+
+    torch.save(ac.state_dict(), './weights/ac.pth')
 
     # else:
     #     mlp.load_weights('./weights/policy_net.pth')

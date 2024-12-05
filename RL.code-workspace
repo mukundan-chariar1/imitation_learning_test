@@ -8,6 +8,9 @@
 		},
 		{
 			"path": "../CS285-DeepRL"
+		},
+		{
+			"path": "../diffmimic"
 		}
 	],
 	"settings": {}

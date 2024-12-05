@@ -39,48 +39,34 @@ def progress(num_steps, metrics):
 
 
 if __name__=='__main__':
-    # st()
-    envs.register_environment('custom_humanoid', SMPLHumanoid)
-    # envs.register_environment('custom_humanoid', customHumanoid)
+    envs.register_environment('custom_humanoid', customHumanoid)
     env_name = "custom_humanoid" 
-    backend = 'mjx' 
-    # backend='generalized'
+    backend = 'generalized' 
     #50_000_000,
 
     env = envs.get_environment(env_name=env_name,
                             backend=backend)
     state = jax.jit(env.reset)(rng=jax.random.PRNGKey(seed=0))
 
+    # jit_env_reset = jax.jit(env.reset)
+    # jit_env_step = jax.jit(env.step)
+    # # jit_inference_fn = jax.jit(inference_fn)
+
+    # rollout = []
+    # rng = jax.random.PRNGKey(seed=1)
+    # state = jit_env_reset(rng=rng)
     # jst()
+    # for t in range(1000):
+    #     rollout.append(state.pipeline_state)
+    #     # act_rng, rng = jax.random.split(rng)
+    #     # act, _ = jit_inference_fn(state.obs, act_rng)
+    #     act=jax.random.normal(rng, (69,))
+    #     act=(act-act.mean())/act.std()
+    #     state = jit_env_step(state, act)
 
-    jit_env_reset = jax.jit(env.reset)
-    jit_env_step = jax.jit(env.step)
-    # jit_inference_fn = jax.jit(inference_fn)
+    # train_func=functools.partial(ppo.train,  num_timesteps=1, num_evals=10, reward_scaling=0.1, episode_length=1000, normalize_observations=True, action_repeat=1, unroll_length=10, num_minibatches=32, num_updates_per_batch=8, discounting=0.97, learning_rate=3e-4, entropy_cost=1e-3, num_envs=128, batch_size=64, seed=1)
 
-    rollout = []
-    rng = jax.random.PRNGKey(seed=1)
-    state = jit_env_reset(rng=rng)
-    # jst()
-    for t in range(100):
-        rollout.append(state.pipeline_state)
-        # act_rng, rng = jax.random.split(rng)
-        # act, _ = jit_inference_fn(state.obs, act_rng)
-        # act=jax.random.normal(rng, (69,))
-        # act=(act-act.mean())/act.std()
-        act=jp.zeros((69, ))
-        # act=jp.zeros((17, ))
-        # act = -0.1 * jp.ones((69, ))
-        state = jit_env_step(state, act)
-
-    create_interactive_rollout(env, [state.pipeline_state], jit_env_reset)
-    # create_interactive_rollout(env, rollout, jit_env_reset)
-
-    # exit()
-    # st()
-
-    # train_func=functools.partial(ppo.train,  num_timesteps=50_000_000, num_evals=10, reward_scaling=0.1, episode_length=1000, normalize_observations=True, action_repeat=1, unroll_length=10, num_minibatches=32, num_updates_per_batch=8, discounting=0.97, learning_rate=3e-4, entropy_cost=1e-3, num_envs=2048, batch_size=1024, seed=1)
-
-    train_func=functools.partial(ppo.train,  num_timesteps=1, num_evals=1, reward_scaling=0.1, episode_length=100, normalize_observations=True, action_repeat=1, unroll_length=10, num_minibatches=1, num_updates_per_batch=1, discounting=0.97, learning_rate=3e-4, entropy_cost=1e-3, num_envs=1, batch_size=1, seed=1)
+    train_func=functools.partial(ppo.train,  num_timesteps=1, num_evals=1, reward_scaling=0.1, episode_length=1000, normalize_observations=True, action_repeat=1, unroll_length=10, num_minibatches=32, num_updates_per_batch=8, discounting=0.97, learning_rate=3e-4, entropy_cost=1e-3, num_envs=2048, batch_size=1024, seed=1)
 
     max_y = 13000
     min_y = 0
@@ -89,8 +75,8 @@ if __name__=='__main__':
 
     make_inference_fn, params, _ = train_func(environment=env, progress_fn=progress)
 
-    model.save_params('./weights/params.pkl', params)
-    params = model.load_params('./weights/params.pkl')
+    # model.save_params('./weights/params.pkl', params)
+    params = model.load_params('./weights_humanoid/params.pkl')
     inference_fn = make_inference_fn(params)
 
     env = envs.create(env_name=env_name, backend=backend)
@@ -102,7 +88,7 @@ if __name__=='__main__':
     rollout = []
     rng = jax.random.PRNGKey(seed=1)
     state = jit_env_reset(rng=rng)
-    for t in range(100):
+    for t in range(1000):
         rollout.append(state.pipeline_state)
         act_rng, rng = jax.random.split(rng)
         act, _ = jit_inference_fn(state.obs, act_rng)

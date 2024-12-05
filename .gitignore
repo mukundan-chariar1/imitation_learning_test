@@ -4,7 +4,9 @@ dataset/
 lib/plots/
 output*/
 **/__pycache__/
+
 test.py
+RL.code-workspace
 
 *.mp4
 *.pt
