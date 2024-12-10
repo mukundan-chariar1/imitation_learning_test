@@ -3,7 +3,7 @@
   <compiler coordinate="local" inertiafromgeom="true" angle="degree"/>
   <statistic extent="2" center="0 0 1"/>
   <!-- <option timestep="0.00555"/> -->
-  <option iterations="8" timestep="0.003"/>
+  <option timestep="0.003"/>
 
   <custom>
         <!-- brax custom params -->

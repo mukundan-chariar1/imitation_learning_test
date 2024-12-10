@@ -4,6 +4,7 @@ dataset/
 lib/plots/
 output*/
 **/__pycache__/
+temps/
 
 test.py
 RL.code-workspace

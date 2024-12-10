@@ -11,6 +11,9 @@
 		},
 		{
 			"path": "../diffmimic"
+		},
+		{
+			"path": "../RL_project"
 		}
 	],
 	"settings": {}

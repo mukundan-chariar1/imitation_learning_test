@@ -11,6 +11,9 @@ from jax import numpy as jp
 from jax.debug import breakpoint as jst
 from pdb import set_trace as st
 
+# TODO:
+# Change to jax based instead of tiorch to speed up things
+
 class ActorCritic(nn.Module):
     def __init__(self, input_size, hidden_size, output_size, num_layers=3):
         super(ActorCritic, self).__init__()
