@@ -1,157 +1,131 @@
-import torch
-import torch.nn as nn
-import torch.optim as optim
-from torch.distributions.categorical import Categorical
-from torch.distributions.normal import Normal
-import torch.nn.functional as F
-
 import jax
 from jax import numpy as jp
+from jax import nn
+from jax import random
+
+import flax
+from flax import nnx
+
+import optax
+
+from lib.environments.utils import *
 
 from jax.debug import breakpoint as jst
 from pdb import set_trace as st
 
-# TODO:
-# Change to jax based instead of tiorch to speed up things
+class MLP(nnx.Module):
+    def __init__(self, input_size, hidden_size, output_size, key, num_layers=3, activation=nnx.relu):
+        super(MLP, self).__init__()
+        self.input_layer = nnx.Linear(input_size, hidden_size, rngs=key)
+        # self.hidden_layers = [nnx.Linear(hidden_size, hidden_size, rngs=key) for _ in range(num_layers)]
+        self.hidden_layers=[] if not activation else [activation]
+        for i in range(num_layers): 
+            self.hidden_layers.append(nnx.Linear(hidden_size, hidden_size, rngs=key))
+            if activation: self.hidden_layers.append(activation)
+        self.hidden_layers=nnx.Sequential(*self.hidden_layers)
+        self.output_layer = nnx.Linear(hidden_size, output_size * 2, rngs=key)
 
-class ActorCritic(nn.Module):
-    def __init__(self, input_size, hidden_size, output_size, num_layers=3):
+    def __call__(self, x):
+        out=self.output_layer(self.hidden_layers(self.input_layer(x)))
+        # logits = nnx.tanh(x)  # Output layer, also for actions in [-1, 1] range
+        # probs = nnx.softmax(x, axis=-1)
+        return out
+    
+class ActorCritic(nnx.Module):
+    def __init__(self, state_dim, action_dim, hidden_size, key, actor_layers=3, critic_layers=1):
         super(ActorCritic, self).__init__()
 
-        self.actor_layers=[nn.Linear(input_size, hidden_size), nn.ReLU()]
-        for i in range(num_layers):
-            self.actor_layers.extend([nn.Linear(hidden_size, hidden_size), nn.ReLU()])
-        self.actor_layers.extend([nn.Linear(hidden_size, output_size), nn.ReLU(), torch.nn.Softmax(-1)])
+        # self.actor = nnx.Sequential([
+        #     nnx.Linear(state_dim, hidden_size, rngs=key),
+        #     nnx.relu,
+        #     nnx.Linear(hidden_size, action_dim, rngs=key),
+        #     nnx.softmax
+        # ])
 
-        self.actor_layers=nn.Sequential(*self.actor_layers)
+        # # Critic network for state-value estimation
+        # self.critic = nnx.Sequential([
+        #     nnx.Linear(state_dim, hidden_size, rngs=key),
+        #     nnx.relu,
+        #     nnx.Linear(hidden_size, 1, rngs=key)  # Single value output
+        # ])
 
-        self.critic_layers=[nn.Linear(input_size, hidden_size), nn.ReLU()]
-        for i in range(num_layers):
-            self.critic_layers.extend([nn.Linear(hidden_size, hidden_size), nn.ReLU()])
-        self.critic_layers.append(nn.Linear(hidden_size, 1))
+        self.actor=MLP(state_dim, hidden_size, action_dim, key, actor_layers)
+        self.softmax=nnx.softmax
 
-        self.critic_layers=nn.Sequential(*self.critic_layers)
+        self.critic=MLP(state_dim, hidden_size, 1, key, critic_layers)
 
-    def select_action(self, obs):
-        action_probs=self.actor_layers(obs)
-        dist=Categorical(action_probs)
-        action=dist.sample()
-        log_probs=dist.log_prob(action)
-
-        return action, log_probs
-    
-    def estimate_value(self, obs):
-        value=self.critic_layers(obs)
-
-        return value
-
-
-
-class MLP(nn.Module):
-    def __init__(self, input_size, hidden_size, output_size, num_layers=3):
-        super(MLP, self).__init__()
-        self.layers=[nn.Linear(input_size, hidden_size), nn.ReLU()]
-        for i in range(num_layers):
-            self.layers.extend([nn.Linear(hidden_size, hidden_size), nn.ReLU()])
-        self.layers.extend([nn.Linear(hidden_size, output_size*2), nn.ReLU(), torch.nn.Softmax(-1)])
-
-        self.layers=nn.Sequential(*self.layers)
-
-    def forward(self, x):
-        x=self.layers(x)
-        logits = self.relu(x)  # Output layer, also tanh for actions in [-1, 1] range
-        probs = self.softmax(x)
-        return logits, probs
-
-    def select_action(self, observation, env, epsilon=0.1):
-        """Use the MLP to select an action given the current observation."""
-        logits, action_probs = self(observation)
-        loc, scale = torch.split(logits, logits.shape[-1] // 2, dim=-1)
-        scale = F.softplus(scale) + .001
-        action_dist=Normal(loc, scale)
-        action = action_dist.sample()
-        log_prob = action_dist.log_prob(action)
-        action=torch.tanh(action)
-            
-        return action, log_prob  # Return action as a NumPy array for the environment
-    
-    def load_weights(self, path):
-        """Loads weights from a specified path into the network."""
-        try:
-            self.load_state_dict(torch.load(path))
-            print(f"Weights loaded successfully from {path}")
-        except Exception as e:
-            print(f"Error loading weights: {e}")
-
-class ValueFunction(nn.Module):
-    def __init__(self, state_dim, hidden_dim=64, num_layers=3):
-        super(ValueFunction, self).__init__()
-        # Define a simple MLP with two hidden layers
-        self.layers=[nn.Linear(state_dim, hidden_dim), nn.ReLU()]
-        for i in range(num_layers):
-            self.layers.extend([nn.Linear(hidden_dim, hidden_dim), nn.ReLU()])
-        self.layers.append(nn.Linear(hidden_dim, 1))  # Output a single value
-
-        self.layers=nn.Sequential(*self.layers)
-
-    def forward(self, state):
-        # Forward pass through the network
-        value = self.layers(state)  # Output a single value for the given state
-        return value
-    
-    def load_weights(self, path):
-        """Loads weights from a specified path into the network."""
-        try:
-            self.load_state_dict(torch.load(path))
-            print(f"Weights loaded successfully from {path}")
-        except Exception as e:
-            print(f"Error loading weights: {e}")
-    
-def train_actor_critic(env, actor, critic, actor_optimizer, critic_optimizer, gamma=0.99, num_episodes=500):
-    for episode in range(num_episodes):
-        state = env.reset()
-        done = False
-        episode_reward = 0
+    # def init(self, key):
+    #     """Initialize parameters for both networks."""
         
-        while not done:
-            state_tensor = torch.tensor(state, dtype=torch.float32)
+    #     self.actor_params = self.actor.init(actor_key, jp.ones((1, self.state_dim)))
+    #     self.critic_params = self.critic.init(critic_key, jp.ones((1, self.state_dim)))
 
-            # Actor chooses action based on policy
-            action_probs = actor(state_tensor)
-            action_dist = torch.distributions.Categorical(action_probs)
-            action = action_dist.sample()  # Sample action according to action probabilities
-            log_prob = action_dist.log_prob(action)  # Log probability of the chosen action
+    def forward_actor(self, state):
+        return self.softmax(self.actor(state))
 
-            # Take action in the environment
-            next_state, reward, done, _ = env.step(action.item())
-            next_state_tensor = torch.tensor(next_state, dtype=torch.float32)
-            reward_tensor = torch.tensor(reward, dtype=torch.float32)
+    def forward_critic(self, state):
+        return self.critic(state)
 
-            # Calculate value of current state and next state
-            value = critic(state_tensor)
-            next_value = critic(next_state_tensor)
-            
-            # Calculate TD error and Critic loss
-            target = reward_tensor + (1 - done) * gamma * next_value
-            td_error = target - value
-            critic_loss = td_error.pow(2).mean()  # Mean Squared TD Error
+@jax.jit
+def update_model(state, action, reward, next_state, done, model, actor_opt_state, critic_opt_state):
+    def actor_loss_fn(model, state, next_state, action):
+        probs = model.forward_actor(state)
+        log_prob = jp.log(probs[action])
+        advantage = reward + gamma * (1 - done) * model.forward_critic(next_state) - model.forward_critic(state)
+        return -log_prob * advantage
 
-            # Critic update
-            critic_optimizer.zero_grad()
-            critic_loss.backward()
-            critic_optimizer.step()
+    def critic_loss_fn():
+        value = model.forward_critic(state)
+        target = reward + gamma * (1 - done) * model.forward_critic(next_state)
+        return jp.mean((value - target) ** 2)
 
-            # Actor loss and update
-            actor_loss = -log_prob * td_error.detach()  # Maximize expected reward
-            actor_optimizer.zero_grad()
-            actor_loss.backward()
-            actor_optimizer.step()
+    # Update actor
+    actor_grad_fn = nnx.value_and_grad(actor_loss_fn, has_aux=True)
+    (actor_loss, action_logits), actor_grads = actor_grad_fn(model.actor, state)
+    model.actor_params = optax.apply_updates(model.actor_params, actor_updates)
 
-            # Move to next state
-            state = next_state
-            episode_reward += reward
+    # Update critic
+    critic_grads = nnx.value_and_grad(critic_loss_fn, has_aux=True)
+    critic_updates, critic_opt_state = critic_optimizer.update(critic_grads, critic_opt_state)
+    model.critic_params = optax.apply_updates(model.critic_params, critic_updates)
 
-        print(f"Episode {episode + 1}: Total Reward = {episode_reward}")
+    return model, actor_opt_state, critic_opt_state
 
+if __name__=='__main__':
+    # Example usage
+    # key = random.PRNGKey(0)
+    # x = jp.array([[0.1, 0.2, 0.3]])  # Dummy input
 
+    # # Define the model
+    # model = MLP(input_size=3, hidden_size=128, output_size=10, num_layers=3, key=nnx.Rngs(0))
 
+    # # Initialize parameters
+    # # variables = model.init(key, x)
+
+    # # Forward pass
+    # logits, probs = model(x)
+    # print("Logits:", logits)
+    # print("Probabilities:", probs)
+
+    state_dim = 4  # Example state dimension
+    action_dim = 2  # Example action dimension
+    hidden_size = 128
+    learning_rate = 0.001
+    gamma = 0.99
+
+    # Initialize Actor-Critic model and optimizer
+    # key = random.PRNGKey(0)
+    key = nnx.Rngs(0)
+    model = ActorCritic(state_dim, action_dim, hidden_size, key=key)
+    # model.init(key)
+    actor_optimizer = nnx.optimizer(model.actor, optax.adam(learning_rate))
+    critic_optimizer = nnx.optimizer(model.critic, optax.adam(learning_rate))
+
+    # Example usage
+    state = jp.array([[0.1, 0.2, 0.3, 0.4]])  # Example state
+    action = 0  # Example action
+    reward = 1.0  # Example reward
+    next_state = jp.array([[0.5, 0.6, 0.7, 0.8]])  # Example next state
+    done = 0  # Not done
+
+    model, actor_opt_state, critic_opt_state = update_model(state, action, reward, next_state, done, model, actor_opt_state, critic_opt_state)

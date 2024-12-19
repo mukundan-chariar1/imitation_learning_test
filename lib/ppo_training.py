@@ -15,9 +15,11 @@ from IPython.display import HTML, clear_output
 
 # import streamlit as stream
 
-from lib.env import *
+from lib.environments.env import *
 from lib.network import *
-from lib.viz import *
+from lib.utils.viz import *
+
+from lib.environments.test import SMPLHumanoid as SMPLHumanoid_test
 
 import pickle
 
@@ -41,7 +43,6 @@ def progress(num_steps, metrics):
     plt.plot(xdata, ydata)
     plt.savefig('./rewards.png')
 
-
 if __name__=='__main__':
     # st()
     envs.register_environment('custom_humanoid', SMPLHumanoid)
@@ -49,43 +50,17 @@ if __name__=='__main__':
     # envs.register_environment('custom_humanoid', SkelHumanoid)
     env_name = "custom_humanoid" 
     backend = 'mjx' 
-    # backend='generalized'
-    #50_000_000,
 
     env = envs.get_environment(env_name=env_name,
-                            backend=backend)
-    state = jax.jit(env.reset)(rng=jax.random.PRNGKey(seed=0))
-
-    # jst()
-
-    jit_env_reset = jax.jit(env.reset)
-    jit_env_step = jax.jit(env.step)
-    # jit_inference_fn = jax.jit(inference_fn)
-
-    rollout = []
-    rng = jax.random.PRNGKey(seed=1)
-    state = jit_env_reset(rng=rng)
-    # jst()
-    for t in range(100):
-        rollout.append(state.pipeline_state)
-        # act_rng, rng = jax.random.split(rng)
-        # act, _ = jit_inference_fn(state.obs, act_rng)
-        # act=jax.random.normal(rng, (69,))
-        # act=(act-act.mean())/act.std()
-        act=jp.zeros(env.action_size)
-        # act=jp.zeros((17, ))
-        # act = -0.1 * jp.ones((69, ))
-        state = jit_env_step(state, act)
-
-    # create_interactive_rollout(env, [state.pipeline_state], jit_env_reset)
-    create_interactive_rollout(env, rollout, jit_env_reset)
-
+                            backend=backend, use_6d_notation=True)
+    test_environment_for_debug(env)
+    # test_environment_for_debug(env, jp.array([1]))
     exit()
     # st()
 
     # train_func=functools.partial(ppo.train,  num_timesteps=50_000_000, num_evals=10, reward_scaling=0.1, episode_length=1000, normalize_observations=True, action_repeat=1, unroll_length=10, num_minibatches=32, num_updates_per_batch=8, discounting=0.97, learning_rate=3e-4, entropy_cost=1e-3, num_envs=2048, batch_size=1024, seed=1)
 
-    train_func=functools.partial(ppo.train,  num_timesteps=1, num_evals=1, reward_scaling=0.1, episode_length=1000, normalize_observations=True, action_repeat=1, unroll_length=10, num_minibatches=1, num_updates_per_batch=1, discounting=0.97, learning_rate=3e-4, entropy_cost=1e-3, num_envs=512, batch_size=512, seed=1)
+    train_func=functools.partial(ppo.train,  num_timesteps=1, num_evals=1, reward_scaling=0.1, episode_length=1000, normalize_observations=True, action_repeat=1, unroll_length=10, num_minibatches=1, num_updates_per_batch=1, discounting=0.97, learning_rate=3e-4, entropy_cost=1e-3, num_envs=1, batch_size=1, seed=1)
 
     max_y = 13000
     min_y = 0

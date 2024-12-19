@@ -3,9 +3,9 @@ import torch.nn as nn
 import torch.optim as optim
 import numpy as np
 
-from lib.env import *
+from lib.environments.env import *
 from lib.network import *
-from lib.viz import *
+from lib.utils.viz import *
 import random
 
 from brax import actuator

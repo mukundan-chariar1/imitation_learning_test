@@ -133,3 +133,6 @@ Describes a physical environment: its links, joints and geometries.
   Returns:
     Tuple of (make_policy function, network params, metrics)
   """
+solo indexes according to names: [9, 12, 11, 10, 13, 0]
+left indexes according to names: [2, 15, 16, 1, 4, 3, 17, 18, 14]
+right indexes according to names: [6, 20, 21, 5, 8, 7, 22, 23, 19]

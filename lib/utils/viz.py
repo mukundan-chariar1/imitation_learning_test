@@ -3,17 +3,6 @@ import imageio
 import numpy as np
 import torch
 import brax
-from brax.envs import wrappers
-
-import gym
-import base64
-from IPython.display import HTML
-from IPython.display import display
-import matplotlib.pyplot as plt
-from PIL import Image
-from io import BytesIO
-
-from IPython.display import HTML, clear_output
 
 import flax
 from brax import envs
@@ -22,6 +11,7 @@ from brax.io import json
 from brax.io import html
 
 import jax
+import jax.numpy as jp
 
 import os
 import webbrowser
@@ -117,3 +107,31 @@ def load_interactive_rollout():
     path = os.path.abspath('temp.html')
     url = 'file://' + path
     webbrowser.open(url)
+
+def test_environment_for_debug(env):
+    jit_env_reset = jax.jit(env.reset)
+    jit_env_step = jax.jit(env.step)
+
+    rollout = []
+    rng = jax.random.PRNGKey(seed=1)
+    # jst()
+
+    state = jit_env_reset(rng=rng)
+
+    for t in range(1000):
+        rollout.append(state.pipeline_state)
+        act=jp.zeros(env.action_size)
+        # act = -0.1 * jp.ones((69, ))
+        state = jit_env_step(state, act)
+
+    create_interactive_rollout(env, rollout, jit_env_reset)
+
+def display_init_positions(env):
+    jit_env_reset = jax.jit(env.reset)
+    jit_env_step = jax.jit(env.step)
+
+    rollout = []
+    rng = jax.random.PRNGKey(seed=1)
+    state = jit_env_reset(rng=rng)
+
+    create_interactive_rollout(env, [state.pipeline_state], jit_env_reset)
