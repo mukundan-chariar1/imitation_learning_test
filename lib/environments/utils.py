@@ -1,8 +1,9 @@
 from jax import numpy as jp
+import jax
 
-import torch
+# import torch
 
-def quaternion_to_matrix(quaternions):
+def quaternion_to_matrix(quaternions: jax.Array) -> jax.Array:
     r, i, j, k = quaternions[..., 0], quaternions[..., 1], quaternions[..., 2], quaternions[..., 3]
     two_s = 2.0 / (quaternions * quaternions).sum(-1)
 
@@ -23,15 +24,15 @@ def quaternion_to_matrix(quaternions):
     return o.reshape(quaternions.shape[:-1] + (3, 3))
 
 
-def matrix_to_rotation_6d(matrix):
+def matrix_to_rotation_6d(matrix: jax.Array) -> jax.Array:
     batch_dim = matrix.shape[:-2]
     return matrix[..., :2, :].reshape(batch_dim + (6,))
 
 
-def quaternion_to_rotation_6d(quaternion):
+def quaternion_to_rotation_6d(quaternion: jax.Array) -> jax.Array:
     return matrix_to_rotation_6d(quaternion_to_matrix(quaternion))
 
-def axis_angle_to_quaternion(axis_angle: torch.Tensor) -> torch.Tensor:
+def axis_angle_to_quaternion(axis_angle):
     """
     Convert rotations given as axis/angle to quaternions.
 

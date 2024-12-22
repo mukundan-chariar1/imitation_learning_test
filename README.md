@@ -136,3 +136,65 @@ Describes a physical environment: its links, joints and geometries.
 solo indexes according to names: [9, 12, 11, 10, 13, 0]
 left indexes according to names: [2, 15, 16, 1, 4, 3, 17, 18, 14]
 right indexes according to names: [6, 20, 21, 5, 8, 7, 22, 23, 19]
+
+['Pelvis', 'L_Hip', 'L_Knee', 'L_Ankle', 'L_Toe', 'R_Hip', 'R_Knee', 'R_Ankle', 'R_Toe', 'Torso', 'Spine', 'Chest', 'Neck', 'Head', 'L_Thorax', 'L_Shoulder', 'L_Elbow', 'L_Wrist', 'L_Hand', 'R_Thorax', 'R_Shoulder', 'R_Elbow', 'R_Wrist', 'R_Hand']
+
+# Joints
+pelvis: 0 change according to height
+l hip (1) = r hip (5)= +ve
+l knee (2) = r knee (6) = +ve
+l ankle (3) = r ankle (7) = +ve
+l toe (4) = r toe (8) = +ve
+
+torso (9) = +ve
+spine (10) = +ve
+chest (11) = +ve
+neck (12) = +ve
+head (13) = +ve
+
+l thorax (14) = -ve r thorax (19)= -ve
+l shoulder (15) = -ve r shoulder (20)= -ve
+l elbow (16) = -ve r elbow (21)= -ve
+l wrist (17) = -ve r wrist (22)= -ve
+l hand (18) = -ve r hand (23)= -ve
+
+# Geoms
+
+pelvis: (1) sphere
+l hip (2) = r hip (6)= capsule (sphere+cylinder)
+l knee (3) = r knee (7) = capsule (sphere+cylinder)
+l ankle (4) = r ankle (8) = box
+l toe (5) = r toe (9) = box
+
+torso (10) = capsule (sphere+cylinder)
+spine (11) = capsule (sphere+cylinder)
+chest (12) = capsule (sphere+cylinder)
+neck (13) = capsule (sphere+cylinder)
+head (14) = sphere
+
+l thorax (15) = -ve r thorax (20)= capsule (sphere+cylinder)
+l shoulder (16) = -ve r shoulder (21)= capsule (sphere+cylinder)
+l elbow (17) = -ve r elbow (22)= capsule (sphere+cylinder)
+l wrist (18) = -ve r wrist (23)= capsule (sphere+cylinder)
+l hand (19) = -ve r hand (24)= sphere
+
+
+
+
+custom in mjcf={'ang_damping': array(-0.05), 'baumgarte_erp': array(0.1), 'collide_scale': array(1.), 'constraint_ang_damping': array([30., 30., 30., 30., 30., 30., 30., 30., 30., 30., 30., 30., 30.,
+       30., 30., 30., 30., 30., 30., 30., 30., 30., 30., 30., 30.]), 'constraint_limit_stiffness': array([2500., 2500., 2500., 2500., 2500., 2500., 2500., 2500., 2500.,
+       2500., 2500., 2500., 2500., 2500., 2500., 2500., 2500., 2500.,
+       2500., 2500., 2500., 2500., 2500., 2500., 2500.]), 'constraint_stiffness': array([27000., 27000., 27000., 27000., 27000., 27000., 27000., 27000.,
+       27000., 27000., 27000., 27000., 27000., 27000., 27000., 27000.,
+       27000., 27000., 27000., 27000., 27000., 27000., 27000., 27000.,
+       27000.]), 'constraint_vel_damping': array([80., 80., 80., 80., 80., 80., 80., 80., 80., 80., 80., 80., 80.,
+       80., 80., 80., 80., 80., 80., 80., 80., 80., 80., 80., 80.]), 'elasticity': array([0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0.,
+       0., 0., 0., 0., 0., 0., 0., 0.]), 'joint_scale_ang': array(0.1), 'joint_scale_pos': array(0.5), 'matrix_inv_iterations': array(20.), 'solver_maxls': array(15.), 'spring_inertia_scale': array(1.), 'spring_mass_scale': array(0.), 'vel_damping': array(0.)}
+
+
+
+# coordinate systems
+
+## Z (vertical) blue
+## Y (horizontal) green
+## X (horizontal) blue

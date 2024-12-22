@@ -5,6 +5,7 @@ lib/plots/
 output*/
 **/__pycache__/
 temps/
+smpl_lib/
 
 test.py
 RL.code-workspace

@@ -1,10 +1,14 @@
-from brax import actuator
-from brax import base
-from brax.envs.base import PipelineEnv, State
-from brax.io import mjcf
-from etils import epath
+from configs import constants as _C
+
+import functools
+from typing import Optional
+
+from brax.envs.base import Env
+from brax import System
+
 import jax
 from jax import numpy as jp
+
 import mujoco
 
 from lib.environments.utils import *
@@ -12,48 +16,157 @@ from lib.environments.utils import *
 from jax.debug import breakpoint as jst
 from pdb import set_trace as st
 
-import torch
+# import torch
 
-def domain_randomize_for_viz(sys, rng):
-    """Applies domain randomization to a Brax system."""
+def domain_randomize(sys: System, rng: jax.Array, env: Env) -> tuple[System, System]:
+
+    # TODO
+    #   - fix randomization per reset due to tracer error
+
+    qpos=env.initial_qpos.copy()
+    capsule_shapes=env.initial_geoms.copy()
+    joint_positions=env.initial_joints.copy()
+    masses=env.initial_mass.copy()
+
+    def randomize_heights(rng: jax.array, qpos: jax.Array, capsule_shapes: jax.Array, joint_positions: jax.Array, masses: jax.Array) -> tuple[jax.Array, jax.Array, jax.Array]:
+        root_height=0
+
+        for joint_idx, geom_idx in zip(_C.INDEXING.UNILATERAL_JNT_IDX, _C.INDEXING.UNILATERAL_GEOM_IDX):
+            rng, subrng=jax.random.split(rng, 2)
+            scaling_val=jax.random.uniform(subrng, (), minval=0.75, maxval=1.25)
+            val=(scaling_val-1)*joint_positions[geom_idx, 2]
+            qpos=qpos.at[joint_idx].set(val)
+            capsule_shapes=capsule_shapes.at[geom_idx].multiply(scaling_val)
+            masses=masses.at[geom_idx].multiply(scaling_val)
+
+        for joint_idx, geom_idx in zip(_C.INDEXING.LEG_JNT_IDX, _C.INDEXING.LEG_GEOM_IDX):
+            rng, subrng=jax.random.split(rng, 2)
+            scaling_val=jax.random.uniform(subrng, (), minval=0.75, maxval=1.25)
+            val=(scaling_val-1)*joint_positions[geom_idx, 2]
+            qpos=qpos.at[joint_idx].set(-val)
+            if geom_idx is not None: 
+                capsule_shapes=capsule_shapes.at[geom_idx].multiply(scaling_val)
+                masses=masses.at[geom_idx].multiply(scaling_val)
+            root_height+=val.mean() # hack, needs to be fixed
+        
+        capsule_shapes=capsule_shapes.at[_C.INDEXING.FOOT_GEOM_IDX[0]].multiply(scaling_val)
+        masses=masses.at[_C.INDEXING.FOOT_GEOM_IDX[0]].multiply(scaling_val)
+
+        for (joint_idx1, joint_idx2), (geom_idx1, geom_idx2) in zip(_C.INDEXING.BILATERAL_JNT_IDX, _C.INDEXING.BILATERAL_JNT_IDX):
+            rng, subrng=jax.random.split(rng, 2)
+            scaling_val=jax.random.uniform(subrng, (), minval=0.75, maxval=1.25)
+            val=(scaling_val-1)*joint_positions[geom_idx1, 1]
+            qpos=qpos.at[joint_idx1].set(jp.abs(val))
+            val=(scaling_val-1)*joint_positions[geom_idx2, 1]
+            qpos=qpos.at[joint_idx2].set(-jp.abs(val))
+            capsule_shapes=capsule_shapes.at[geom_idx1].multiply(scaling_val)
+            capsule_shapes=capsule_shapes.at[geom_idx2].multiply(scaling_val)
+            masses=masses.at[geom_idx1].multiply(scaling_val)
+            masses=masses.at[geom_idx2].multiply(scaling_val)
+
+        rng, subrng=jax.random.split(rng, 2)
+        scaling_val=jax.random.uniform(subrng, (), minval=0.75, maxval=1.25)
+        val=(scaling_val-1)*joint_positions[_C.INDEXING.FOOT_GEOM_IDX[1], 0]
+        qpos=qpos.at[_C.INDEXING.FOOT_JNT_IDX].set(val)
+        capsule_shapes=capsule_shapes.at[_C.INDEXING.FOOT_GEOM_IDX[1]].multiply(scaling_val)
+        masses=masses.at[_C.INDEXING.FOOT_GEOM_IDX[1]].multiply(scaling_val)        
+
+        qpos=qpos.at[_C.INDEXING.ROOT_JNT_IDX].add(root_height)
+        rng, subrng=jax.random.split(rng, 2)
+        scaling_val=jax.random.uniform(subrng, (), minval=0.75, maxval=1.25)
+        capsule_shapes=capsule_shapes.at[_C.INDEXING.ROOT_GEOM_IDX].multiply(scaling_val)
+        masses=masses.at[_C.INDEXING.ROOT_GEOM_IDX].multiply(scaling_val)
+        
+        return qpos, capsule_shapes, masses
     
+    randomization_function=jax.vmap(functools.partial(randomize_heights, qpos=qpos, capsule_shapes=capsule_shapes, joint_positions=joint_positions, masses=masses))
 
-    # Randomize link lengths
-    rng, key_lengths = jax.random.split(rng)
-    lengths = jax.random.uniform(key_lengths, (sys.geom_size.shape[0],), minval=0.5*sys.geom_size[:, 0], maxval=1.5*sys.geom_size[:, 0])
-    sys = sys.tree_replace({'geom_size': sys.geom_size.at[:, 0].set(lengths)})
-
-    return sys
-
-def domain_randomize(sys, rng):
-    """Randomizes various properties of the Brax system, including link lengths."""
-
-    #['Pelvis', 'L_Hip', 'L_Knee', 'L_Ankle', 'L_Toe', 'R_Hip', 'R_Knee', 'R_Ankle', 'R_Toe', 'Torso', 'Spine', 'Chest', 'Neck', 'Head', 'L_Thorax', 'L_Shoulder', 'L_Elbow', 'L_Wrist', 'L_Hand', 'R_Thorax', 'R_Shoulder', 'R_Elbow', 'R_Wrist', 'R_Hand']
-    
-    # @jax.vmap
-    def rand(rng):
-        # Split RNG for multiple randomizations
-        rng, key_friction, key_gain, key_bias, key_length = jax.random.split(rng, 5)
-    
-        # Randomize link lengths
-        length_range = (0.5, 1.5)  # Scale link lengths between 50% and 150% of original
-        lengths = jax.random.uniform(
-            key_length, (sys.geom_size.shape[0],), minval=length_range[0], maxval=length_range[1]
-        )
-        geom_size = sys.geom_size.at[:, 0].set(lengths)  # Assume lengths are stored in the first dimension
-
-        return geom_size
-
-    # Apply randomization
-    geom_size = rand(rng)
+    qpos, capsule_shapes, masses=randomization_function(rng=rng)
+        
     in_axes = jax.tree.map(lambda x: None, sys)
     in_axes = in_axes.tree_replace({
-        'geom_size': 0,  # Add this line to specify the in_axes for 'geom_size
+        'init_q': 0,
+        'geom_size': 0,
+        'body_mass': 0,
     })
 
-    # Replace the randomized parameters in the system
     sys = sys.tree_replace({
-        'geom_size': geom_size,
+        'init_q': qpos,
+        'geom_size': capsule_shapes,
+        'body_mass': masses,
     })
 
     return sys, in_axes
+
+def domain_randomize_no_vmap(sys: System, rng: jax.Array, env: Env) -> System:
+
+    # TODO
+    #   - fix randomization per reset due to tracer error
+
+    qpos=env.initial_qpos.copy()
+    capsule_shapes=env.initial_geoms.copy()
+    joint_positions=env.initial_joints.copy()
+    masses=env.initial_mass.copy()
+
+    def randomize_heights(rng: jax.array, qpos: jax.Array, capsule_shapes: jax.Array, joint_positions: jax.Array, masses: jax.Array) -> tuple[jax.Array, jax.Array, jax.Array]:
+        root_height=0
+
+        for joint_idx, geom_idx in zip(_C.INDEXING.UNILATERAL_JNT_IDX, _C.INDEXING.UNILATERAL_GEOM_IDX):
+            rng, subrng=jax.random.split(rng, 2)
+            scaling_val=jax.random.uniform(subrng, (), minval=0.75, maxval=1.25)
+            val=(scaling_val-1)*joint_positions[geom_idx, 2]
+            qpos=qpos.at[joint_idx].set(val)
+            capsule_shapes=capsule_shapes.at[geom_idx].multiply(scaling_val)
+            masses=masses.at[geom_idx].multiply(scaling_val)
+
+        for joint_idx, geom_idx in zip(_C.INDEXING.LEG_JNT_IDX, _C.INDEXING.LEG_GEOM_IDX):
+            rng, subrng=jax.random.split(rng, 2)
+            scaling_val=jax.random.uniform(subrng, (), minval=0.75, maxval=1.25)
+            val=(scaling_val-1)*joint_positions[geom_idx, 2]
+            qpos=qpos.at[joint_idx].set(-val)
+            if geom_idx is not None: 
+                capsule_shapes=capsule_shapes.at[geom_idx].multiply(scaling_val)
+                masses=masses.at[geom_idx].multiply(scaling_val)
+            root_height+=val.mean() # hack, needs to be fixed
+        
+        capsule_shapes=capsule_shapes.at[_C.INDEXING.FOOT_GEOM_IDX[0]].multiply(scaling_val)
+        masses=masses.at[_C.INDEXING.FOOT_GEOM_IDX[0]].multiply(scaling_val)
+
+        for (joint_idx1, joint_idx2), (geom_idx1, geom_idx2) in zip(_C.INDEXING.BILATERAL_JNT_IDX, _C.INDEXING.BILATERAL_JNT_IDX):
+            rng, subrng=jax.random.split(rng, 2)
+            scaling_val=jax.random.uniform(subrng, (), minval=0.75, maxval=1.25)
+            val=(scaling_val-1)*joint_positions[geom_idx1, 1]
+            qpos=qpos.at[joint_idx1].set(jp.abs(val))
+            val=(scaling_val-1)*joint_positions[geom_idx2, 1]
+            qpos=qpos.at[joint_idx2].set(-jp.abs(val))
+            capsule_shapes=capsule_shapes.at[geom_idx1].multiply(scaling_val)
+            capsule_shapes=capsule_shapes.at[geom_idx2].multiply(scaling_val)
+            masses=masses.at[geom_idx1].multiply(scaling_val)
+            masses=masses.at[geom_idx2].multiply(scaling_val)
+
+        rng, subrng=jax.random.split(rng, 2)
+        scaling_val=jax.random.uniform(subrng, (), minval=0.75, maxval=1.25)
+        val=(scaling_val-1)*joint_positions[_C.INDEXING.FOOT_GEOM_IDX[1], 0]
+        qpos=qpos.at[_C.INDEXING.FOOT_JNT_IDX].set(val)
+        capsule_shapes=capsule_shapes.at[_C.INDEXING.FOOT_GEOM_IDX[1]].multiply(scaling_val)
+        masses=masses.at[_C.INDEXING.FOOT_GEOM_IDX[1]].multiply(scaling_val)        
+
+        qpos=qpos.at[_C.INDEXING.ROOT_JNT_IDX].add(root_height)
+        rng, subrng=jax.random.split(rng, 2)
+        scaling_val=jax.random.uniform(subrng, (), minval=0.75, maxval=1.25)
+        capsule_shapes=capsule_shapes.at[_C.INDEXING.ROOT_GEOM_IDX].multiply(scaling_val)
+        masses=masses.at[_C.INDEXING.ROOT_GEOM_IDX].multiply(scaling_val)
+        
+        return qpos, capsule_shapes, masses
+    
+    randomization_function=jax.jit(functools.partial(randomize_heights, qpos=qpos, capsule_shapes=capsule_shapes, joint_positions=joint_positions, masses=masses))
+
+    qpos, capsule_shapes, masses=randomization_function(rng=rng)
+    
+    sys = sys.tree_replace({
+        'init_q': qpos,
+        'geom_size': capsule_shapes,
+        'body_mass': masses,
+    })
+
+    return sys
