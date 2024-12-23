@@ -13,7 +13,7 @@ from jax.debug import breakpoint as jst
 from pdb import set_trace as st
 
 def create_interactive_rollout(env: Env, rollout: list, height: Optional[int]=1080, headless: Optional[bool]=True, path: Optional[str]='temp.html') -> None:
-    html_file = html.render(env.sys.tree_replace({'opt.timestep': env.dt}), rollout, height)
+    html_file = html.render(env.sys.tree_replace({'opt.timestep': env.dt}), rollout, height=height)
 
     abs_path = os.path.abspath(path)
 

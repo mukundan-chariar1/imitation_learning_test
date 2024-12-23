@@ -28,7 +28,7 @@ def domain_randomize(sys: System, rng: jax.Array, env: Env) -> tuple[System, Sys
     joint_positions=env.initial_joints.copy()
     masses=env.initial_mass.copy()
 
-    def randomize_heights(rng: jax.array, qpos: jax.Array, capsule_shapes: jax.Array, joint_positions: jax.Array, masses: jax.Array) -> tuple[jax.Array, jax.Array, jax.Array]:
+    def randomize_heights(rng: jax.Array, qpos: jax.Array, capsule_shapes: jax.Array, joint_positions: jax.Array, masses: jax.Array) -> tuple[jax.Array, jax.Array, jax.Array]:
         root_height=0
 
         for joint_idx, geom_idx in zip(_C.INDEXING.UNILATERAL_JNT_IDX, _C.INDEXING.UNILATERAL_GEOM_IDX):
@@ -108,7 +108,7 @@ def domain_randomize_no_vmap(sys: System, rng: jax.Array, env: Env) -> System:
     joint_positions=env.initial_joints.copy()
     masses=env.initial_mass.copy()
 
-    def randomize_heights(rng: jax.array, qpos: jax.Array, capsule_shapes: jax.Array, joint_positions: jax.Array, masses: jax.Array) -> tuple[jax.Array, jax.Array, jax.Array]:
+    def randomize_heights(rng: jax.Array, qpos: jax.Array, capsule_shapes: jax.Array, joint_positions: jax.Array, masses: jax.Array) -> tuple[jax.Array, jax.Array, jax.Array]:
         root_height=0
 
         for joint_idx, geom_idx in zip(_C.INDEXING.UNILATERAL_JNT_IDX, _C.INDEXING.UNILATERAL_GEOM_IDX):

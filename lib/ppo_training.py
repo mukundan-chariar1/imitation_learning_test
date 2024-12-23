@@ -19,8 +19,6 @@ from IPython.display import HTML, clear_output
 from lib.network import *
 from lib.utils.viz import *
 from lib.utils.wrappers import *
-
-from lib.environments.test import SMPLHumanoid as SMPLHumanoid_test
 from lib.environments.env import *
 from lib.environments.scaling import *
 
@@ -56,7 +54,7 @@ if __name__=='__main__':
 
     env = envs.get_environment(env_name=env_name,
                             backend=backend, use_6d_notation=False)
-    # display_init_positions(env)
+    display_init_positions(env, headless=False)
     # test_environment_for_debug(env)
     # test_environment_for_debug(env, jp.array([1]))
     # exit()
@@ -81,23 +79,23 @@ if __name__=='__main__':
     params = model.load_params('./weights/params.pkl')
     inference_fn = make_inference_fn(params)
 
-    env = envs.create(env_name=env_name, backend=backend, use_6d_notation=False)
+    viz_env = envs.create(env_name=env_name, backend=backend, use_6d_notation=False)
 
-    jit_env_reset = jax.jit(env.reset)
-    jit_env_step = jax.jit(env.step)
+    jit_env_reset = jax.jit(viz_env.reset)
+    jit_env_step = jax.jit(viz_env.step)
     jit_inference_fn = jax.jit(inference_fn)
 
     rollout = []
     rng = jax.random.PRNGKey(seed=1)
     state = jit_env_reset(rng=rng)
-    for t in range(100):
+    for t in range(1000):
         rollout.append(state.pipeline_state)
         act_rng, rng = jax.random.split(rng)
         act, _ = jit_inference_fn(state.obs, act_rng)
         # act=jp.zeros(env.action_size)
         state = jit_env_step(state, act)
 
-    create_interactive_rollout(env, rollout, jit_env_reset)
+    create_interactive_rollout(env=viz_env, rollout=rollout, headless=False)
 
     # model.save_params('./weights/rollout_viz.pkl', rollout)
     # st.success("Simulation complete!") link_names
