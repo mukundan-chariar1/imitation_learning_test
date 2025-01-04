@@ -198,3 +198,251 @@ custom in mjcf={'ang_damping': array(-0.05), 'baumgarte_erp': array(0.1), 'colli
 ## Z (vertical) blue
 ## Y (horizontal) green
 ## X (horizontal) blue
+
+## translation joints
+
+L_Hip_z_transl
+L_Knee_z_transl
+L_Ankle_z_transl
+L_Toe_x_transl
+R_Hip_z_transl
+R_Knee_z_transl
+R_Ankle_z_transl
+R_Toe_x_transl
+Torso_z_transl
+Spine_z_transl
+Chest_z_transl
+Neck_z_transl
+Head_z_transl
+L_Thorax_y_transl
+L_Shoulder_y_transl
+L_Elbow_y_transl
+L_Wrist_y_transl
+L_Hand_y_transl
+R_Thorax_y_transl
+R_Shoulder_y_transl
+R_Elbow_y_transl
+R_Wrist_y_transl
+R_Hand_y_transl
+
+<position joint="L_Hip_z_transl" />
+<position joint="L_Knee_z_transl" />
+<position joint="L_Ankle_z_transl" />
+<position joint="L_Toe_x_transl" />
+<position joint="R_Hip_z_transl" />
+<position joint="R_Knee_z_transl" />
+<position joint="R_Ankle_z_transl" />
+<position joint="R_Toe_x_transl" />
+<position joint="Torso_z_transl" />
+<position joint="Spine_z_transl" />
+<position joint="Chest_z_transl" />
+<position joint="Neck_z_transl" />
+<position joint="Head_z_transl" />
+<position joint="L_Thorax_y_transl" />
+<position joint="L_Shoulder_y_transl" />
+<position joint="L_Elbow_y_transl" />
+<position joint="L_Wrist_y_transl" />
+<position joint="L_Hand_y_transl" />
+<position joint="R_Thorax_y_transl" />
+<position joint="R_Shoulder_y_transl" />
+<position joint="R_Elbow_y_transl" />
+<position joint="R_Wrist_y_transl" />
+<position joint="R_Hand_y_transl" />
+
+
+# qpos notes
+
+- 0: pelvis x
+- 1: pelvis y
+- 2: pelvis z
+- 3: pelvis rot w
+- 4: pelvis rot x
+- 5: pelvis rot y
+- 6: pelvis rot z
+- 7: l hip z
+- 8: l hip rot x
+- 9: l hip rot y
+- 10: l hip rot z
+- 11: l knee z
+- 12: l knee rot x
+- 13: l knee rot y
+- 14: l knee rot z
+- 15: l ankle z
+- 16: l ankle rot x
+- 17: l ankle rot
+- 18: l ankle rot
+- 19: l toe x
+- 20: l toe rot x
+- 21: l toe rot y
+- 22: l toe rot z
+- 23: r hip z
+- 24: r hip rot x
+- 25: r hip rot x
+- 26: r hip rot x
+- 27: r knee z
+- 28: r knee rot x
+- 29: r knee rot y
+- 30: r knee rot z
+- 31: r ankle z
+- 32: r ankle rot x
+- 33: r ankle rot y
+- 34: r ankle rot z
+- 35: r toe x
+- 36: r toe rot x
+- 37: r toe rot y
+- 38: r toe rot z
+- 39: torso z
+- 40: torso rot x
+- 41: torso rot y
+- 42: torso rot z
+- 43: spine z
+- 44: spine rot x
+- 45: spine rot y
+- 46: spine rot z
+- 47: chest z
+- 48: chest rot x
+- 49: chest rot y
+- 50: chest rot z
+- 51: neck z
+- 52: neck rot x
+- 53: neck rot y
+- 54: neck rot z
+- 55: head z
+- 56: neck rot x
+- 57: neck rot y
+- 58: neck rot z
+- 59: l thorax y
+- 60: l thorax rot x
+- 61: l thorax rot y
+- 62: l thorax rot z
+- 63: l shoulder y
+- 64: l shoulder rot x
+- 65: l shoulder rot y
+- 66: l shoulder rot z
+- 67: l elbow y
+- 68: l elbow rot x
+- 69: l elbow rot y
+- 70: l elbow rot z
+- 71: l wrist y
+- 72: l wrist rot x
+- 73: l wrist rot y
+- 74: l wrist rot z
+- 75: l hand y
+- 76: l hand rot x
+- 77: l hand rot y
+- 78: l hand rot z
+- 79: r thorax y
+- 80: r thorax rot x
+- 81: r thorax rot y
+- 82: r thorax rot z
+- 83: r shoulder y
+- 84: r shoulder rot x
+- 85: r shoulder rot y
+- 86: r shoulder rot z
+- 87: r elbow y
+- 88: r elbow rot x
+- 89: r elbow rot y
+- 90: r elbow rot z
+- 91: r wrist y
+- 92: r wrist rot x
+- 93: r wrist rot y
+- 94: r wrist rot z
+- 95: r hand y
+- 96: r hand rot x
+- 97: r hand rot y
+- 98: r hand rot z
+
+# act notes
+
+- 0: 
+- 1: 
+- 2: 
+- 3: 
+- 4: 
+- 5: 
+- 6: 
+- 7: 
+- 8: 
+- 9: 
+- 10: 
+- 11: 
+- 12: 
+- 13: 
+- 14: 
+- 15: 
+- 16: 
+- 17: 
+- 18: 
+- 19: 
+- 20: 
+- 21: 
+- 22: 
+- 23: 
+- 24: 
+- 25: 
+- 26: 
+- 27: 
+- 28: 
+- 29: 
+- 30: 
+- 31: 
+- 32: 
+- 33: 
+- 34: 
+- 35: 
+- 36: 
+- 37: 
+- 38: 
+- 39: 
+- 40: 
+- 41: 
+- 42: 
+- 43: 
+- 44: 
+- 45: 
+- 46: 
+- 47: 
+- 48: 
+- 49: 
+- 50: 
+- 51: 
+- 52: 
+- 53: 
+- 54: 
+- 55: 
+- 56: 
+- 57: 
+- 58: 
+- 59: 
+- 60: 
+- 61: 
+- 62: 
+- 63: 
+- 64: 
+- 65: 
+- 66: 
+- 67: 
+- 68: 
+- 69: 
+- 70: 
+- 71: 
+- 72: 
+- 73: 
+- 74: 
+- 75: 
+- 76: 
+- 77: 
+- 78: 
+- 79: 
+- 80: 
+- 81: 
+- 82: 
+- 83: 
+- 84: 
+- 85: 
+- 86: 
+- 87: 
+- 88: 
+- 89: 
+- 90: 
+- 91: 

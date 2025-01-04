@@ -38,7 +38,24 @@ def test_environment_for_debug(env: Env, headless: Optional[bool]=True, path: Op
     for t in range(1000):
         rollout.append(state.pipeline_state)
         act=jp.zeros(env.action_size)
+        # jst()
         # act = -0.1 * jp.ones((69, ))
+        state = jit_env_step(state, act)
+
+    create_interactive_rollout(env, rollout, headless=headless, path=path)
+
+def test_joint_for_debug(env: Env, headless: Optional[bool]=True, path: Optional[str]='temp.html', idx: Optional[int]=0) -> None:
+    jit_env_reset = jax.jit(env.reset)
+    jit_env_step = jax.jit(env.step)
+
+    rollout = []
+    rng = jax.random.PRNGKey(seed=1)
+    state = jit_env_reset(rng=rng)
+
+    for t in range(2):
+        rollout.append(state.pipeline_state)
+        act=jp.zeros(env.action_size)
+        act=act.at[idx].set(10)
         state = jit_env_step(state, act)
 
     create_interactive_rollout(env, rollout, headless=headless, path=path)

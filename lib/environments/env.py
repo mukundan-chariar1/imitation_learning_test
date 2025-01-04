@@ -231,8 +231,15 @@ class SMPLHumanoid_imitator(PipelineEnv):
         return obs
     
 class SMPLHumanoid(PipelineEnv):
+
+    # TODO:
+    #   - fix issues with scaling
+    #   - fix issues with model collapsing
+    #   - tune PID controller values for position actuators
+    #   - fix setting each position to initial value in step
+
     def __init__(self, use_newton_solver: Optional[bool]=True, use_6d_notation: Optional[bool]=False, ignore_joint_positions: Optional[bool]=True, **kwargs):
-        path = 'lib/model/smpl_humanoid_v5.xml'
+        path = 'lib/model/smpl_humanoid_v6.xml'
         mj_model = mujoco.MjModel.from_xml_path(path)
         if use_newton_solver: mj_model.opt.solver = mujoco.mjtSolver.mjSOL_NEWTON
         sys = mjcf.load_model(mj_model)
@@ -256,6 +263,8 @@ class SMPLHumanoid(PipelineEnv):
     def reset(self, rng: jax.Array) -> State:
         rng, rng1, rng2 = jax.random.split(rng, 3)
         qpos=self.sys.init_q
+        qpos=qpos.at[59].set(10)
+        # jst()
         qvel=jp.zeros(self.sys.qd_size(),)
 
         pipeline_state = self.pipeline_init(qpos, qvel)
