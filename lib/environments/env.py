@@ -257,8 +257,9 @@ class SMPLHumanoid(PipelineEnv):
 
         self.initial_geoms=sys.geom_size
         self.initial_qpos=sys.init_q
-        self.initial_joints=sys.body_pos
+        self.initial_body_pos=sys.body_pos # outdated, use geom_pos instead
         self.initial_mass=sys.body_mass
+        self.initial_joint_lim=sys.jnt_range
 
     def reset(self, rng: jax.Array) -> State:
         rng, rng1, rng2 = jax.random.split(rng, 3)
