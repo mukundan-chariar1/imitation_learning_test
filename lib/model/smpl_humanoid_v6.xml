@@ -24,8 +24,8 @@
     <motor ctrlrange="-.4 .4" ctrllimited="true"/>
     <!-- <geom type="capsule" condim="3" friction="1.0 0.05 0.05" solimp=".9 .99 .003" solref=".015 1" density="1500"/> -->
     <!-- <geom type="sphere" condim="3" friction="1.0 0.05 0.05" solimp=".9 .99 .003" solref=".015 1" density="1500"/> -->
-    <geom condim="3" material="geom" friction="1.0 0.05 0.05" solimp=".9 .99 .003" solref=".015 1" density="1500"/>
-    <joint type="hinge" damping="6" stiffness="10" armature=".007" limited="true"/>
+    <geom condim="3" material="geom" friction="1.0 0.05 0.05" solimp=".9 .99 .003" solref=".02 1" density="1500"/>
+    <joint type="hinge" damping="6" stiffness="10" armature=".007" limited="true" solimplimit="0 .99 .01"/>
     <site size=".04" group="3"/>
     <default class="force-torque">
       <site type="box" size=".01 .01 .02" rgba="1 0 0 1"/>
@@ -53,7 +53,7 @@
 
       <body name="L_Hip" pos="-0.00555 0.0686 -0.09095">
         
-        <joint name="L_Hip_z_transl" type="slide" pos="0 0 0" axis="0 0 1" range="-90.0000 90.0000" stiffness="0" damping="0"/>
+        <joint name="L_Hip_z_transl" solreflimit="0.02 1" solimplimit="0.95 0.99 0.1" type="slide" pos="0 0 0" axis="0 0 1" range="-1 1" stiffness="0" damping="0" limited="true"/>
 
         <joint name="L_Hip_x" type="hinge" pos="0 0 0" axis="1 0 0" armature="0.02" range="-90.0000 90.0000" stiffness="100"/>
         <joint name="L_Hip_y" type="hinge" pos="0 0 0" axis="0 1 0" armature="0.02" range="-90.0000 90.0000" stiffness="100"/>
@@ -63,7 +63,7 @@
 
         <body name="L_Knee" pos="-0.0067 0.0363 -0.3789">
           
-          <joint name="L_Knee_z_transl" type="slide" pos="0 0 0" axis="0 0 1" range="-90.0000 90.0000" stiffness="0" damping="0"/>
+          <joint name="L_Knee_z_transl" solreflimit="0.02 1" solimplimit="0.95 0.99 0.1" type="slide" pos="0 0 0" axis="0 0 1" range="-1 1" stiffness="0" damping="0" limited="true"/>
 
           <joint name="L_Knee_x" type="hinge" pos="0 0 0" axis="1 0 0" armature="0.02" range="-5.6250 5.6250" stiffness="100"/>
           <joint name="L_Knee_y" type="hinge" pos="0 0 0" axis="0 1 0" armature="0.02" range="0.0000 180.0000" stiffness="100"/>
@@ -73,7 +73,7 @@
 
           <body name="L_Ankle" pos="-0.043 -0.0147 -0.3982">
             
-            <joint name="L_Ankle_z_transl" type="slide" pos="0 0 0" axis="0 0 1" range="-90.0000 90.0000" stiffness="0" damping="0"/>
+            <joint name="L_Ankle_z_transl" solreflimit="0.02 1" solimplimit="0.95 0.99 0.1" type="slide" pos="0 0 0" axis="0 0 1" range="-1 1" stiffness="0" damping="0" limited="true"/>
 
             <joint name="L_Ankle_x" type="hinge" pos="0 0 0" axis="1 0 0" armature="0.02" range="-45.0000 45.0000" stiffness="100"/>
             <joint name="L_Ankle_y" type="hinge" pos="0 0 0" axis="0 1 0" armature="0.02" range="-90.0000 90.0000" stiffness="100"/>
@@ -83,7 +83,7 @@
             
             <body name="L_Toe" pos="0.1213 0.0259 -0.05195">
               
-              <joint name="L_Toe_x_transl" type="slide" pos="0 0 0" axis="1 0 0" range="-90.0000 90.0000" stiffness="0" damping="0"/>
+              <joint name="L_Toe_x_transl" solreflimit="0.02 1" solimplimit="0.95 0.99 0.1" type="slide" pos="0 0 0" axis="1 0 0" range="-1 1" stiffness="0" damping="0" limited="true"/>
 
               <joint name="L_Toe_x" type="hinge" pos="0 0 0" axis="1 0 0" armature="0.02" range="-180.0000 180.0000" stiffness="100"/>
               <joint name="L_Toe_y" type="hinge" pos="0 0 0" axis="0 1 0" armature="0.02" range="-180.0000 180.0000" stiffness="100"/>
@@ -96,7 +96,7 @@
       </body>
       <body name="R_Hip" pos="-0.00555 -0.0686 -0.09095">
         
-        <joint name="R_Hip_z_transl" type="slide" pos="0 0 0" axis="0 0 1" range="-90.0000 90.0000" stiffness="0" damping="0"/>
+        <joint name="R_Hip_z_transl" solreflimit="0.02 1" solimplimit="0.95 0.99 0.1" type="slide" pos="0 0 0" axis="0 0 1" range="-1 1" stiffness="0" damping="0" limited="true"/>
 
         <joint name="R_Hip_x" type="hinge" pos="0 0 0" axis="1 0 0" armature="0.02" range="-90.0000 90.0000" stiffness="100"/>
         <joint name="R_Hip_y" type="hinge" pos="0 0 0" axis="0 1 0" armature="0.02" range="-90.0000 90.0000" stiffness="100"/>
@@ -106,7 +106,7 @@
         
         <body name="R_Knee" pos="-0.0067 -0.0363 -0.3789">
           
-          <joint name="R_Knee_z_transl" type="slide" pos="0 0 0" axis="0 0 1" range="-90.0000 90.0000" stiffness="0" damping="0"/>
+          <joint name="R_Knee_z_transl" solreflimit="0.02 1" solimplimit="0.95 0.99 0.1" type="slide" pos="0 0 0" axis="0 0 1" range="-1 1" stiffness="0" damping="0" limited="true"/>
 
           <joint name="R_Knee_x" type="hinge" pos="0 0 0" axis="1 0 0" armature="0.02" range="-5.6250 5.6250" stiffness="100"/>
           <joint name="R_Knee_y" type="hinge" pos="0 0 0" axis="0 1 0" armature="0.02" range="0.0000 180.0000" stiffness="100"/>
@@ -116,7 +116,7 @@
           
           <body name="R_Ankle" pos="-0.043 0.0147 -0.3982">
             
-            <joint name="R_Ankle_z_transl" type="slide" pos="0 0 0" axis="0 0 1" range="-90.0000 90.0000" stiffness="0" damping="0"/>
+            <joint name="R_Ankle_z_transl" solreflimit="0.02 1" solimplimit="0.95 0.99 0.1" type="slide" pos="0 0 0" axis="0 0 1" range="-1 1" stiffness="0" damping="0" limited="true"/>
 
             <joint name="R_Ankle_x" type="hinge" pos="0 0 0" axis="1 0 0" armature="0.02" range="-45.0000 45.0000" stiffness="100"/>
             <joint name="R_Ankle_y" type="hinge" pos="0 0 0" axis="0 1 0" armature="0.02" range="-90.0000 90.0000" stiffness="100"/>
@@ -126,7 +126,7 @@
             
             <body name="R_Toe" pos="0.1213 -0.0259 -0.05195">
               
-              <joint name="R_Toe_x_transl" type="slide" pos="0 0 0" axis="1 0 0" range="-90.0000 90.0000" stiffness="0" damping="0"/>
+              <joint name="R_Toe_x_transl" solreflimit="0.02 1" solimplimit="0.95 0.99 0.1" type="slide" pos="0 0 0" axis="1 0 0" range="-1 1" stiffness="0" damping="0" limited="true"/>
 
               <joint name="R_Toe_x" type="hinge" pos="0 0 0" axis="1 0 0" armature="0.02" range="-180.0000 180.0000" stiffness="100"/>
               <joint name="R_Toe_y" type="hinge" pos="0 0 0" axis="0 1 0" armature="0.02" range="-180.0000 180.0000" stiffness="100"/>
@@ -141,7 +141,7 @@
         
         <camera name="track" mode="trackcom" pos="0 -4 0" xyaxes="1 0 0 0 0 1"/>
         
-        <joint name="Torso_z_transl" type="slide" pos="0 0 0" axis="0 0 1" range="-90.0000 90.0000" stiffness="0" damping="0"/>
+        <joint name="Torso_z_transl" solreflimit="0.02 1" solimplimit="0.95 0.99 0.1" type="slide" pos="0 0 0" axis="0 0 1" range="-1 1" stiffness="0" damping="0" limited="true"/>
 
         <joint name="Torso_x" type="hinge" pos="0 0 0" axis="1 0 0" armature="0.02" range="-60.0000 60.0000" damping="10" stiffness="500"/>
         <joint name="Torso_y" type="hinge" pos="0 0 0" axis="0 1 0" armature="0.02" range="-60.0000 60.0000" damping="10" stiffness="500"/>
@@ -151,7 +151,7 @@
         
         <body name="Spine" pos="0.0011 0.0 0.1352">
           
-          <joint name="Spine_z_transl" type="slide" pos="0 0 0" axis="0 0 1" range="-90.0000 90.0000" stiffness="0" damping="0"/>
+          <joint name="Spine_z_transl" solreflimit="0.02 1" solimplimit="0.95 0.99 0.1" type="slide" pos="0 0 0" axis="0 0 1" range="-1 1" stiffness="0" damping="0" limited="true"/>
 
           <joint name="Spine_x" type="hinge" pos="0 0 0" axis="1 0 0" armature="0.02" range="-60.0000 60.0000" stiffness="100"/>
           <joint name="Spine_y" type="hinge" pos="0 0 0" axis="0 1 0" armature="0.02" range="-60.0000 60.0000" stiffness="100"/>
@@ -161,7 +161,7 @@
           
           <body name="Chest" pos="0.0254 0.0 0.0529">
             
-            <joint name="Chest_z_transl" type="slide" pos="0 0 0" axis="0 0 1" range="-90.0000 90.0000" stiffness="0" damping="0"/>
+            <joint name="Chest_z_transl" solreflimit="0.02 1" solimplimit="0.95 0.99 0.1" type="slide" pos="0 0 0" axis="0 0 1" range="-1 1" stiffness="0" damping="0" limited="true"/>
 
             <joint name="Chest_x" type="hinge" pos="0 0 0" axis="1 0 0" armature="0.02" range="-60.0000 60.0000" stiffness="100"/>
             <joint name="Chest_y" type="hinge" pos="0 0 0" axis="0 1 0" armature="0.02" range="-60.0000 60.0000" stiffness="100"/>
@@ -171,7 +171,7 @@
             
             <body name="Neck" pos="-0.0429 0.0 0.2139">
               
-              <joint name="Neck_z_transl" type="slide" pos="0 0 0" axis="0 0 1" range="-90.0000 90.0000" stiffness="0" damping="0"/>
+              <joint name="Neck_z_transl" solreflimit="0.02 1" solimplimit="0.95 0.99 0.1" type="slide" pos="0 0 0" axis="0 0 1" range="-1 1" stiffness="0" damping="0" limited="true"/>
 
               <joint name="Neck_x" type="hinge" pos="0 0 0" axis="1 0 0" armature="0.02" range="-5.6250 5.6250" stiffness="100"/>
               <joint name="Neck_y" type="hinge" pos="0 0 0" axis="0 1 0" armature="0.02" range="-90.0000 90.0000" stiffness="100"/>
@@ -181,7 +181,7 @@
               
               <body name="Head" pos="0.0513 0.0 0.065">
                 
-                <joint name="Head_z_transl" type="slide" pos="0 0 0" axis="0 0 1" range="-90.0000 90.0000" stiffness="0" damping="0"/>
+                <joint name="Head_z_transl" solreflimit="0.02 1" solimplimit="0.95 0.99 0.1" type="slide" pos="0 0 0" axis="0 0 1" range="-1 1" stiffness="0" damping="0" limited="true"/>
 
                 <joint name="Head_x" type="hinge" pos="0 0 0" axis="1 0 0" armature="0.02" range="-5.6250 5.6250" stiffness="100"/>
                 <joint name="Head_y" type="hinge" pos="0 0 0" axis="0 1 0" armature="0.02" range="-90.0000 90.0000" stiffness="100"/>
@@ -193,7 +193,7 @@
             
             <body name="L_Thorax" pos="-0.03635 0.0803 0.12025">
               
-              <joint name="L_Thorax_y_transl" type="slide" pos="0 0 0" axis="0 1 0" range="-90.0000 90.0000" stiffness="0" damping="0"/>
+              <joint name="L_Thorax_y_transl" solreflimit="0.02 1" solimplimit="0.95 0.99 0.1" type="slide" pos="0 0 0" axis="0 1 0" range="-1 1" stiffness="0" damping="0" limited="true"/>
 
               <joint name="L_Thorax_x" type="hinge" pos="0 0 0" axis="1 0 0" armature="0.02" range="-5.6250 5.6250" stiffness="100"/>
               <joint name="L_Thorax_y" type="hinge" pos="0 0 0" axis="0 1 0" armature="0.02" range="-5.6250 5.6250" stiffness="100"/>
@@ -203,7 +203,7 @@
               
               <body name="L_Shoulder" pos="-0.009 0.0935 0.03155">
                 
-                <joint name="L_Shoulder_y_transl" type="slide" pos="0 0 0" axis="0 1 0" range="-90.0000 90.0000" stiffness="0" damping="0"/>
+                <joint name="L_Shoulder_y_transl" solreflimit="0.02 1" solimplimit="0.95 0.99 0.1" type="slide" pos="0 0 0" axis="0 1 0" range="-1 1" stiffness="0" damping="0" limited="true"/>
 
                 <joint name="L_Shoulder_x" type="hinge" pos="0 0 0" axis="1 0 0" armature="0.02" range="-720.0000 720.0000" stiffness="100"/>
                 <joint name="L_Shoulder_y" type="hinge" pos="0 0 0" axis="0 1 0" armature="0.02" range="-720.0000 720.0000" stiffness="100"/>
@@ -213,7 +213,7 @@
                 
                 <body name="L_Elbow" pos="-0.02445 0.25665 -0.01305">
                   
-                  <joint name="L_Elbow_y_transl" type="slide" pos="0 0 0" axis="0 1 0" range="-90.0000 90.0000" stiffness="0" damping="0"/>
+                  <joint name="L_Elbow_y_transl" solreflimit="0.02 1" solimplimit="0.95 0.99 0.1" type="slide" pos="0 0 0" axis="0 1 0" range="-1 1" stiffness="0" damping="0" limited="true"/>
 
                   <joint name="L_Elbow_x" type="hinge" pos="0 0 0" axis="1 0 0" armature="0.02" range="-5.6250 5.6250" stiffness="100"/>
                   <joint name="L_Elbow_y" type="hinge" pos="0 0 0" axis="0 1 0" armature="0.02" range="-5.6250 5.6250" stiffness="100"/>
@@ -223,7 +223,7 @@
                   
                   <body name="L_Wrist" pos="-0.0034 0.25225 0.0084">
                     
-                    <joint name="L_Wrist_y_transl" type="slide" pos="0 0 0" axis="0 1 0" range="-90.0000 90.0000" stiffness="0" damping="0"/>
+                    <joint name="L_Wrist_y_transl" solreflimit="0.02 1" solimplimit="0.95 0.99 0.1" type="slide" pos="0 0 0" axis="0 1 0" range="-1 1" stiffness="0" damping="0" limited="true"/>
 
                     <joint name="L_Wrist_x" type="hinge" pos="0 0 0" axis="1 0 0" armature="0.02" range="-180.0000 180.0000" stiffness="100"/>
                     <joint name="L_Wrist_y" type="hinge" pos="0 0 0" axis="0 1 0" armature="0.02" range="-180.0000 180.0000" stiffness="100"/>
@@ -233,7 +233,7 @@
                     
                     <body name="L_Hand" pos="-0.0126 0.0843 -0.00715">
                     
-                      <joint name="L_Hand_y_transl" type="slide" pos="0 0 0" axis="0 1 0" range="-90.0000 90.0000" stiffness="0" damping="0"/>
+                      <joint name="L_Hand_y_transl" solreflimit="0.02 1" solimplimit="0.95 0.99 0.1" type="slide" pos="0 0 0" axis="0 1 0" range="-1 1" stiffness="0" damping="0" limited="true"/>
 
                       <joint name="L_Hand_x" type="hinge" pos="0 0 0" axis="1 0 0" armature="0.02" range="-180.0000 180.0000" stiffness="100"/>
                       <joint name="L_Hand_y" type="hinge" pos="0 0 0" axis="0 1 0" armature="0.02" range="-180.0000 180.0000" stiffness="100"/>
@@ -247,7 +247,7 @@
             
             <body name="R_Thorax" pos="-0.03635 -0.0803 0.12025">
             
-              <joint name="R_Thorax_y_transl" type="slide" pos="0 0 0" axis="0 1 0" range="-90.0000 90.0000" stiffness="0" damping="0"/>
+              <joint name="R_Thorax_y_transl" solreflimit="0.02 1" solimplimit="0.95 0.99 0.1" type="slide" pos="0 0 0" axis="0 1 0" range="-1 1" stiffness="0" damping="0" limited="true"/>
 
               <joint name="R_Thorax_x" type="hinge" pos="0 0 0" axis="1 0 0" armature="0.02" range="-5.6250 5.6250" stiffness="100"/>
               <joint name="R_Thorax_y" type="hinge" pos="0 0 0" axis="0 1 0" armature="0.02" range="-5.6250 5.6250" stiffness="100"/>
@@ -257,7 +257,7 @@
              
               <body name="R_Shoulder" pos="-0.009 -0.0935 0.03155">
              
-                <joint name="R_Shoulder_y_transl" type="slide" pos="0 0 0" axis="0 1 0" range="-90.0000 90.0000" stiffness="0" damping="0"/>
+                <joint name="R_Shoulder_y_transl" solreflimit="0.02 1" solimplimit="0.95 0.99 0.1" type="slide" pos="0 0 0" axis="0 1 0" range="-1 1" stiffness="0" damping="0" limited="true"/>
 
                 <joint name="R_Shoulder_x" type="hinge" pos="0 0 0" axis="1 0 0" armature="0.02" range="-720.0000 720.0000" stiffness="100"/>
                 <joint name="R_Shoulder_y" type="hinge" pos="0 0 0" axis="0 1 0" armature="0.02" range="-720.0000 720.0000" stiffness="100"/>
@@ -267,7 +267,7 @@
                
                 <body name="R_Elbow" pos="-0.02445 -0.25665 -0.01305">
                
-                  <joint name="R_Elbow_y_transl" type="slide" pos="0 0 0" axis="0 1 0" range="-90.0000 90.0000" stiffness="0" damping="0"/>
+                  <joint name="R_Elbow_y_transl" solreflimit="0.02 1" solimplimit="0.95 0.99 0.1" type="slide" pos="0 0 0" axis="0 1 0" range="-1 1" stiffness="0" damping="0" limited="true"/>
 
                   <joint name="R_Elbow_x" type="hinge" pos="0 0 0" axis="1 0 0" armature="0.02" range="-5.6250 5.6250" stiffness="100"/>
                   <joint name="R_Elbow_y" type="hinge" pos="0 0 0" axis="0 1 0" armature="0.02" range="-5.6250 5.6250" stiffness="100"/>
@@ -277,7 +277,7 @@
                  
                   <body name="R_Wrist" pos="-0.0034 -0.25225 0.0084">
                  
-                    <joint name="R_Wrist_y_transl" type="slide" pos="0 0 0" axis="0 1 0" range="-90.0000 90.0000" stiffness="0" damping="0"/>
+                    <joint name="R_Wrist_y_transl" solreflimit="0.02 1" solimplimit="0.95 0.99 0.1" type="slide" pos="0 0 0" axis="0 1 0" range="-1 1" stiffness="0" damping="0" limited="true"/>
 
                     <joint name="R_Wrist_x" type="hinge" pos="0 0 0" axis="1 0 0" armature="0.02" range="-180.0000 180.0000" stiffness="100"/>
                     <joint name="R_Wrist_y" type="hinge" pos="0 0 0" axis="0 1 0" armature="0.02" range="-180.0000 180.0000" stiffness="100"/>
@@ -287,7 +287,7 @@
                    
                     <body name="R_Hand" pos="-0.0126 -0.0843 -0.00715">
                    
-                      <joint name="R_Hand_y_transl" type="slide" pos="0 0 0" axis="0 1 0" range="-90.0000 90.0000" stiffness="0" damping="0"/>
+                      <joint name="R_Hand_y_transl" solreflimit="0.02 1" solimplimit="0.95 0.99 0.1" type="slide" pos="0 0 0" axis="0 1 0" range="-1 1" stiffness="0" damping="0" limited="true"/>
 
                       <joint name="R_Hand_x" type="hinge" pos="0 0 0" axis="1 0 0" armature="0.02" range="-180.0000 180.0000" stiffness="100"/>
                       <joint name="R_Hand_y" type="hinge" pos="0 0 0" axis="0 1 0" armature="0.02" range="-180.0000 180.0000" stiffness="100"/>
@@ -374,7 +374,7 @@
     <motor name="R_Hand_y" joint="R_Hand_y" gear="500"/>
     <motor name="R_Hand_z" joint="R_Hand_z" gear="500"/>
 
-    <position joint="L_Hip_z_transl" />
+    <!-- <position joint="L_Hip_z_transl" />
     <position joint="L_Knee_z_transl" />
     <position joint="L_Ankle_z_transl" />
     <position joint="L_Toe_x_transl" />
@@ -396,9 +396,7 @@
     <position joint="R_Shoulder_y_transl" />
     <position joint="R_Elbow_y_transl" />
     <position joint="R_Wrist_y_transl" />
-    <position joint="R_Hand_y_transl" />
-
-    <!-- <motor name="L_Wrist_y_slider" joint="L_Wrist_y_slider" gear="500"/> -->
+    <position joint="R_Hand_y_transl" /> -->
   </actuator>
   <contact/>
   <size njmax="700" nconmax="700"/>

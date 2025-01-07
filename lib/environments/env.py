@@ -263,8 +263,6 @@ class SMPLHumanoid(PipelineEnv):
     def reset(self, rng: jax.Array) -> State:
         rng, rng1, rng2 = jax.random.split(rng, 3)
         qpos=self.sys.init_q
-        qpos=qpos.at[59].set(10)
-        # jst()
         qvel=jp.zeros(self.sys.qd_size(),)
 
         pipeline_state = self.pipeline_init(qpos, qvel)

@@ -40,6 +40,7 @@ def test_environment_for_debug(env: Env, headless: Optional[bool]=True, path: Op
         act=jp.zeros(env.action_size)
         # jst()
         # act = -0.1 * jp.ones((69, ))
+        # jst()
         state = jit_env_step(state, act)
 
     create_interactive_rollout(env, rollout, headless=headless, path=path)
@@ -49,16 +50,20 @@ def test_joint_for_debug(env: Env, headless: Optional[bool]=True, path: Optional
     jit_env_step = jax.jit(env.step)
 
     rollout = []
+    xpos_list=[]
     rng = jax.random.PRNGKey(seed=1)
     state = jit_env_reset(rng=rng)
 
-    for t in range(2):
+    for t in range(100):
         rollout.append(state.pipeline_state)
+        xpos_list.append(state.pipeline_state.xpos)
         act=jp.zeros(env.action_size)
-        act=act.at[idx].set(10)
+        # act=act.at[idx].set(10)
         state = jit_env_step(state, act)
 
     create_interactive_rollout(env, rollout, headless=headless, path=path)
+
+    return jp.stack(xpos_list)
 
 def display_init_positions(env: Env, headless: Optional[bool]=True, path: Optional[str]='temp.html') -> None:
     jit_env_reset = jax.jit(env.reset)

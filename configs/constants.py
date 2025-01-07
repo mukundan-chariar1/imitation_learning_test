@@ -37,8 +37,8 @@ import jax.numpy as jp
 class INDEXING:
     ROOT_JNT_IDX=jp.array([2]) # array([0])
     UNILATERAL_JNT_IDX=jp.array([39, 43, 47, 51, 55]) # array([9, 10, 11, 12, 13])
-    LEG_JNT_IDX=jp.array([[7, 23], [11, 27], [15, 31]]) # array([[1, 5], [2, 6], [3, 7]])
-    FOOT_JNT_IDX=jp.array([[19, 35]]) # array([[4, 8]])
+    LEG_JNT_IDX=jp.array([[7, 23], [11, 27]]) # array([[1, 5], [2, 6], [3, 7]])
+    FOOT_JNT_IDX=jp.array([[15, 31], [19, 35]]) # array([[4, 8]])
     BILATERAL_JNT_IDX=jp.array([[59, 79], [63, 83], [67, 87], [71, 91], [75, 95]]) # array([[14, 19], [15, 20], [16, 21], [17, 22], [18, 23]])
 
     ROOT_GEOM_IDX=jp.array([1])
@@ -46,3 +46,47 @@ class INDEXING:
     LEG_GEOM_IDX=jp.array([[2, 6], [3, 7]])
     FOOT_GEOM_IDX=jp.array([[4, 8], [5, 9]])
     BILATERAL_GEOM_IDX=jp.array([[15, 20], [16, 21], [17, 22], [18, 23], [19, 24]])
+
+    TRANSL_JNT_IDXS=jp.array([6, 10, 14, 18, 22, 26, 30, 34, 38, 42, 46, 50, 54, 58, 62, 66, 70, 74, 78, 82, 86, 90, 94])
+    TRANS_JNT_TOL=0.0001
+
+class RESHAPED_INDEXING:
+    ROOT_JNT_IDX=jp.array([0])
+    UNILATERAL_JNT_IDX=jp.array([9, 10, 11, 12, 13])
+    LEG_JNT_IDX=jp.array([[1, 5], [2, 6], [3, 7]])
+    FOOT_JNT_IDX=jp.array([[4, 8]])
+    BILATERAL_JNT_IDX=jp.array([[14, 19], [15, 20], [16, 21], [17, 22], [18, 23]])
+
+class PARENTS:
+    ROOT_JNT_IDX=jp.array([0])
+    UNILATERAL_JNT_IDX=jp.array([1, 10, 11, 12, 13])
+    LEG_JNT_IDX=jp.array([[1, 1], [2, 6], [3, 7]])
+    FOOT_JNT_IDX=jp.array([[4, 8]])
+    BILATERAL_JNT_IDX=jp.array([[11, 11], [15, 20], [16, 21], [17, 22], [18, 23]])
+
+class CHILDREN:
+    DATA=[[1], 
+          [2, 6, 10], 
+          [3], 
+          [4], 
+          [5], 
+          [-1], 
+          [7], 
+          [8], 
+          [9], 
+          [-1], 
+          [11], 
+          [12, 15, 20], 
+          [13], 
+          [14],
+          [-1],
+          [16],
+          [17],
+          [18],
+          [19],
+          [-1],
+          [21],
+          [22],
+          [23],
+          [24],
+          [-1],]

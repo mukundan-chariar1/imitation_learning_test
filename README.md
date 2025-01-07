@@ -354,95 +354,149 @@ R_Hand_y_transl
 
 # act notes
 
-- 0: 
-- 1: 
-- 2: 
-- 3: 
-- 4: 
-- 5: 
-- 6: 
-- 7: 
-- 8: 
-- 9: 
-- 10: 
-- 11: 
-- 12: 
-- 13: 
-- 14: 
-- 15: 
-- 16: 
-- 17: 
-- 18: 
-- 19: 
-- 20: 
-- 21: 
-- 22: 
-- 23: 
-- 24: 
-- 25: 
-- 26: 
-- 27: 
-- 28: 
-- 29: 
-- 30: 
-- 31: 
-- 32: 
-- 33: 
-- 34: 
-- 35: 
-- 36: 
-- 37: 
-- 38: 
-- 39: 
-- 40: 
-- 41: 
-- 42: 
-- 43: 
-- 44: 
-- 45: 
-- 46: 
-- 47: 
-- 48: 
-- 49: 
-- 50: 
-- 51: 
-- 52: 
-- 53: 
-- 54: 
-- 55: 
-- 56: 
-- 57: 
-- 58: 
-- 59: 
-- 60: 
-- 61: 
-- 62: 
-- 63: 
-- 64: 
-- 65: 
-- 66: 
-- 67: 
-- 68: 
-- 69: 
-- 70: 
-- 71: 
-- 72: 
-- 73: 
-- 74: 
-- 75: 
-- 76: 
-- 77: 
-- 78: 
-- 79: 
-- 80: 
-- 81: 
-- 82: 
-- 83: 
-- 84: 
-- 85: 
-- 86: 
-- 87: 
-- 88: 
-- 89: 
-- 90: 
-- 91: 
+- 0: l hip x
+- 1: l hip y
+- 2: l hip z
+- 3: l knee x
+- 4: l knee y
+- 5: l knee z
+- 6: l ankle x
+- 7: l ankle y
+- 8: l ankle z
+- 9: l toe x
+- 10: l toe y
+- 11: l toe z
+- 12: r hip x
+- 13: r hip y
+- 14: r hip z
+- 15: r knee x
+- 16: r knee y
+- 17: r knee z
+- 18: r ankle x
+- 19: r ankle y
+- 20: r ankle z
+- 21: r toe x
+- 22: r toe y
+- 23: r toe z
+- 24: torso x
+- 25: torso y
+- 26: torso z
+- 27: spine x
+- 28: spine y
+- 29: spine z
+- 30: chest x
+- 31: chest y
+- 32: chest z
+- 33: neck x
+- 34: neck y
+- 35: neck z
+- 36: head x
+- 37: head y
+- 38: head z
+- 39: l thorax x
+- 40: l thorax y
+- 41: l thorax z
+- 42: l shoulder x
+- 43: l shoulder y
+- 44: l shoulder z
+- 45: l elbow x
+- 46: l elbow y
+- 47: l elbow z
+- 48: l wrist x
+- 49: l wrist y
+- 50: l wrist z
+- 51: l hand x
+- 52: l hand y
+- 53: l hand z
+- 54: r thorax x
+- 55: r thorax y
+- 56: r thorax z
+- 57: r shoulder x
+- 58: r shoulder y
+- 59: r shoulder z
+- 60: r elbow x
+- 61: r elbow y
+- 62: r elbow z
+- 63: r wrist x
+- 64: r wrist y
+- 65: r wrist z
+- 66: r hand x
+- 67: r hand y
+- 68: r hand z
+- 69: l hip z transl  
+- 70: l knee z transl  
+- 71: l ankle z transl  
+- 72: l toe x transl  
+- 73: r hip z transl  
+- 74: r knee z transl  
+- 75: r ankle z transl  
+- 76: r toe x transl  
+- 77: torso z transl  
+- 78: spine z transl  
+- 79: chest z transl  
+- 80: neck z transl  
+- 81: head z transl  
+- 82: l thorax y transl  
+- 83: l shoulder y transl  
+- 84: l elbow y transl  
+- 85: l wrist y transl  
+- 86: l hand y transl  
+- 87: r thorax y transl  
+- 88: r shoulder y transl  
+- 89: r elbow y transl  
+- 90: r wrist y transl  
+- 91: r hand y transl  
+
+# limit idxs
+
+- 6: l hip z transl  
+- 10: l knee z transl  
+- 14: l ankle z transl  
+- 18: l toe x transl  
+- 22: r hip z transl  
+- 26: r knee z transl  
+- 30: r ankle z transl  
+- 34: r toe x transl  
+- 38: torso z transl  
+- 42: spine z transl  
+- 46: chest z transl  
+- 50: neck z transl  
+- 54: head z transl  
+- 58: l thorax y transl  
+- 62: l shoulder y transl  
+- 66: l elbow y transl  
+- 70: l wrist y transl  
+- 74: l hand y transl  
+- 78: r thorax y transl  
+- 82: r shoulder y transl  
+- 86: r elbow y transl  
+- 90: r wrist y transl  
+- 94: r hand y transl  
+
+## pytree nodes in heirarchical structure
+
+- 0 Floor
+- 1    'Pelvis', 
+- 2      'L_Hip', 
+- 3          'L_Knee', 
+- 4              'L_Ankle', 
+- 5                  'L_Toe', 
+- 6      'R_Hip', 
+- 7          'R_Knee', 
+- 8              'R_Ankle', 
+- 9                  'R_Toe', 
+- 10     'Torso', 
+- 11         'Spine', 
+- 12             'Chest', 
+- 13                 'Neck', 
+- 14                     'Head', 
+- 15         'L_Thorax', 
+- 16             'L_Shoulder', 
+- 17                 'L_Elbow', 
+- 18                     'L_Wrist', 
+- 19                         'L_Hand', 
+- 20         'R_Thorax', 
+- 21             'R_Shoulder', 
+- 22                 'R_Elbow', 
+- 23                     'R_Wrist', 
+- 24                         'R_Hand'
