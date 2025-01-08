@@ -1,3 +1,5 @@
+from configs import constants as _C
+
 from typing import Optional
 
 from brax import base

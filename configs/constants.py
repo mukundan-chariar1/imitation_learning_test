@@ -47,8 +47,8 @@ class INDEXING:
     FOOT_GEOM_IDX=jp.array([[4, 8], [5, 9]])
     BILATERAL_GEOM_IDX=jp.array([[15, 20], [16, 21], [17, 22], [18, 23], [19, 24]])
 
-    TRANSL_JNT_IDXS=jp.array([6, 10, 14, 18, 22, 26, 30, 34, 38, 42, 46, 50, 54, 58, 62, 66, 70, 74, 78, 82, 86, 90, 94])
-    TRANS_JNT_TOL=0.0001
+    TRANSL_JNT_IDXS=jp.array([7, 11, 15, 19, 23, 27, 31, 35, 39, 43, 47, 51, 55, 59, 63, 67, 71, 75, 79, 83, 87, 91, 95])
+    ROT_JNT_IDX=None # rotational joint idx here
 
 class RESHAPED_INDEXING:
     ROOT_JNT_IDX=jp.array([0])
