@@ -1,6 +1,9 @@
 from jax import numpy as jp
 import jax
 
+from jax.debug import breakpoint as jst
+from pdb import set_trace as st
+
 # import torch
 
 def quaternion_to_matrix(quaternions: jax.Array) -> jax.Array:
@@ -32,71 +35,13 @@ def matrix_to_rotation_6d(matrix: jax.Array) -> jax.Array:
 def quaternion_to_rotation_6d(quaternion: jax.Array) -> jax.Array:
     return matrix_to_rotation_6d(quaternion_to_matrix(quaternion))
 
-def axis_angle_to_quaternion(axis_angle):
-    """
-    Convert rotations given as axis/angle to quaternions.
-
-    Args:
-        axis_angle: Rotations given as a vector in axis angle form,
-            as a tensor of shape (..., 3), where the magnitude is
-            the angle turned anticlockwise in radians around the
-            vector's direction.
-
-    Returns:
-        quaternions with real part first, as tensor of shape (..., 4).
-    """
-    axis_angle[:, 0]+=torch.pi
-    angles = torch.norm(axis_angle, p=2, dim=-1, keepdim=True)
-    half_angles = angles * 0.5
-    eps = 1e-6
-    small_angles = angles.abs() < eps
-    sin_half_angles_over_angles = torch.empty_like(angles)
-    sin_half_angles_over_angles[~small_angles] = (
-        torch.sin(half_angles[~small_angles]) / angles[~small_angles]
-    )
-    # for x small, sin(x/2) is about x/2 - (x/2)^3/6
-    # so sin(x/2)/x is about 1/2 - (x*x)/48
-    sin_half_angles_over_angles[small_angles] = (
-        0.5 - (angles[small_angles] * angles[small_angles]) / 48
-    )
-    quaternions = torch.cat(
-        [torch.cos(half_angles), axis_angle * sin_half_angles_over_angles], dim=-1
-    )
-    return quaternions
-
-def axis_angle_to_quaternion_np(axis_angle):
-    """
-    Convert rotations given as axis/angle to quaternions.
-
-    Args:
-        axis_angle: Rotations given as a vector in axis-angle form,
-                    as a NumPy array of shape (..., 3), where the magnitude
-                    is the angle turned anticlockwise in radians around the
-                    vector's direction.
-
-    Returns:
-        Quaternions with real part first, as a NumPy array of shape (..., 4).
-    """
+def axis_angle_to_quaternion(axis_angle: jax.Array) -> jax.Array:
     # Compute the angle (magnitude of the vector)
     angles = jp.linalg.norm(axis_angle, axis=-1, keepdims=True)
     half_angles = angles * 0.5
     eps = 1e-6
 
-    # Identify small angles to handle them separately
-    small_angles = jp.abs(angles) < eps
-
-    # Allocate the sine term array
-    sin_half_angles_over_angles = jp.empty_like(angles)
-
-    # For large angles: sin(θ/2) / θ
-    sin_half_angles_over_angles[~small_angles] = (
-        jp.sin(half_angles[~small_angles]) / angles[~small_angles]
-    )
-
-    # For small angles: Approximation using Taylor expansion
-    sin_half_angles_over_angles[small_angles] = (
-        0.5 - (angles[small_angles] ** 2) / 48
-    )
+    sin_half_angles_over_angles=jp.where(jp.abs(angles)<eps, 0.5-(angles**2)/48, jp.sin(half_angles)/angles)
 
     # Compute the quaternion
     quaternions = jp.concatenate(
@@ -104,3 +49,9 @@ def axis_angle_to_quaternion_np(axis_angle):
     )
     
     return quaternions
+
+def axis_angle_to_matrix(axis_angle: jax.Array) -> jax.Array:
+    return quaternion_to_matrix(axis_angle_to_quaternion(axis_angle))
+
+def axis_angle_to_rotation_6d(axis_angle: jax.Array):
+    return quaternion_to_rotation_6d(axis_angle_to_quaternion(axis_angle))

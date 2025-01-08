@@ -296,10 +296,26 @@ class SMPLHumanoid(PipelineEnv):
         return state.replace(
             pipeline_state=new_state, obs=obs, reward=reward, done=done
         )
+    
+    def _convert_obs(self, pipeline_state: base.State,) -> jax.Array:
+        temp=pipeline_state.q.copy()
+        root_transl=temp[0:3].copy()
+        root_rot=quaternion_to_rotation_6d(temp[3:7].copy())
+        transl_jnts=temp[_C.INDEXING.TRANSL_JNT_IDXS].copy()
+        rot_jnts=temp[_C.INDEXING.ROT_JNT_IDX].copy().reshape((-1, 3))
+        converted_rot_jnts=axis_angle_to_rotation_6d(rot_jnts).flatten()
+
+        q=jp.zeros(root_transl.shape[0]+root_rot.shape[0]+converted_rot_jnts.shape[0]+23)
+        q=q.at[0:3].set(root_transl)
+        q=q.at[3:9].set(root_rot)
+        q=q.at[_C.INDEXING.R6D_TRANSL_IDXS].set(transl_jnts)
+        q=q.at[_C.INDEXING.R6D_ROT_IDXS].set(converted_rot_jnts)
+
+        return jp.concatenate([q, pipeline_state.qd])
 
     def _get_obs(self, pipeline_state: base.State, action: jax.Array) -> jax.Array:
         if self._use_6d_notation:
-            obs=jp.concatenate([pipeline_state.x.pos, quaternion_to_rotation_6d(pipeline_state.x.rot), pipeline_state.xd.vel, pipeline_state.xd.ang], -1).flatten()
+            obs=self._convert_obs(pipeline_state=pipeline_state)
         else: 
             obs=jp.concatenate([pipeline_state.q, pipeline_state.qd])
         return obs
