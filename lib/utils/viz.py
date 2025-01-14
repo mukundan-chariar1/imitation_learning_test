@@ -27,20 +27,18 @@ def load_interactive_rollout(path: Optional[str]='temp.html') -> None:
     url = 'file://' + abs_path
     webbrowser.open(url)
 
-def test_environment_for_debug(env: Env, headless: Optional[bool]=True, path: Optional[str]='temp.html') -> None:
+def test_environment_for_debug(env: Env, headless: Optional[bool]=True, path: Optional[str]='temp.html', randomize: bool=False) -> None:
     jit_env_reset = jax.jit(env.reset)
     jit_env_step = jax.jit(env.step)
 
     rollout = []
     rng = jax.random.PRNGKey(seed=1)
     state = jit_env_reset(rng=rng)
+    act_fn=jp.zeros if not randomize else jp.ones
 
     for t in range(1000):
         rollout.append(state.pipeline_state)
-        act=jp.zeros(env.action_size)
-        # jst()
-        # act = -0.1 * jp.ones((69, ))
-        # jst()
+        act=0.1*act_fn(env.action_size)
         state = jit_env_step(state, act)
 
     create_interactive_rollout(env, rollout, headless=headless, path=path)

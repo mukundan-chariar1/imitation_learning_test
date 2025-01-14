@@ -250,8 +250,9 @@ class SMPLHumanoid(PipelineEnv):
 
         kwargs['n_frames'] = kwargs.get('n_frames', 5)
 
-        self._upright_reward_weight=0.1
-        self._upward_reward_weight=5
+        self._upright_reward_weight=5
+        self._upward_reward_hip_weight=4
+        self._upward_reward_head_weight=5
         self._vel_reward_weight=15
 
         self._use_6d_notation=use_6d_notation
@@ -259,7 +260,7 @@ class SMPLHumanoid(PipelineEnv):
 
         self.initial_geoms=sys.geom_size
         self.initial_qpos=sys.init_q
-        self.initial_body_pos=sys.body_pos # outdated, use geom_pos instead
+        self.initial_body_pos=sys.body_pos
         self.initial_mass=sys.body_mass
         self.initial_joint_lim=sys.jnt_range
 
@@ -278,10 +279,10 @@ class SMPLHumanoid(PipelineEnv):
         state_prev = state.pipeline_state
         count=state.metrics['counter']+1
         new_state=self.pipeline_step(state_prev, action)
-        upward_reward=jp.where(new_state.x.pos[0, :] >= jp.ones(3)*0.5, new_state.x.pos[0, :]**2*self._upward_reward_weight, 0)[-1]
+        upward_reward=jp.where(new_state.x.pos[0, :] >= jp.ones(3)*0.5, new_state.x.pos[0, :]**2*self._upward_reward_hip_weight, 0)[-1]+jp.where(new_state.x.pos[13, :] >= jp.ones(3)*1, new_state.x.pos[0, :]**2*self._upward_reward_head_weight, 0)[-1]
 
-        vel_reward=(new_state.subtree_com[0, :]-state_prev.subtree_com[0, :])/self.dt
-        vel_reward=jp.where(vel_reward>=jp.ones(3)*0.5, vel_reward*self._vel_reward_weight, 0)[-1]
+        vel_reward=(new_state.subtree_com[[0, 9, 10, 11, 12, 13], -1]-state_prev.subtree_com[[0, 9, 10, 11, 12, 13], -1])/self.dt
+        vel_reward=jp.where(vel_reward>=jp.ones((6, ))*0.5, vel_reward*self._vel_reward_weight, 0).sum()
 
         upright_reward=jp.where(jp.abs(quaternion_to_rotation_6d(new_state.x.rot[[0, 9, 10, 11, 12, 13], :])-quaternion_to_rotation_6d(jp.array([[1, 0, 0, 0]])))<=0.1, self._upright_reward_weight, 0).sum()
 
