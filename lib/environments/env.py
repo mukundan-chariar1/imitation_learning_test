@@ -250,7 +250,7 @@ class SMPLHumanoid(PipelineEnv):
 
         kwargs['n_frames'] = kwargs.get('n_frames', 5)
 
-        self._upright_reward_weight=5
+        self._upright_reward_weight=0.2
         self._upward_reward_hip_weight=4
         self._upward_reward_head_weight=5
         self._vel_reward_weight=15
