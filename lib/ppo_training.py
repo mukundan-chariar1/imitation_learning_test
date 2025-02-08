@@ -69,8 +69,8 @@ if __name__=='__main__':
                             backend=backend, use_6d_notation=False)
     display_init_positions(env, headless=False)
     # test_environment_for_debug(env)
-    test_environment_for_debug(env, headless=False)
-    exit()
+    # test_environment_for_debug(env, headless=False)
+    # exit()
     # st()
 
     # train_func=functools.partial(ppo.train,  num_timesteps=50_000_000, num_evals=10, reward_scaling=0.1, episode_length=1000, normalize_observations=True, action_repeat=1, unroll_length=10, num_minibatches=32, num_updates_per_batch=8, discounting=0.97, learning_rate=3e-4, entropy_cost=1e-3, num_envs=2048, batch_size=1024, seed=1)

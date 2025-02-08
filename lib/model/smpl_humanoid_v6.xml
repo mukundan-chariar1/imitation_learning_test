@@ -85,9 +85,9 @@
               
               <joint name="L_Toe_x_transl" solreflimit="0.02 1" solimplimit="0.95 0.99 0.1" type="slide" pos="0 0 0" axis="1 0 0" range="-1 1" stiffness="0" damping="0" limited="true"/>
 
-              <joint name="L_Toe_x" type="hinge" pos="0 0 0" axis="1 0 0" armature="0.02" range="-180.0000 180.0000" stiffness="10"/>
-              <joint name="L_Toe_y" type="hinge" pos="0 0 0" axis="0 1 0" armature="0.02" range="-180.0000 180.0000" stiffness="10"/>
-              <joint name="L_Toe_z" type="hinge" pos="0 0 0" axis="0 0 1" armature="0.02" range="-180.0000 180.0000" stiffness="10"/>
+              <joint name="L_Toe_x" type="hinge" pos="0 0 0" axis="1 0 0" armature="0.02" range="-180.0000 180.0000" stiffness="100"/>
+              <joint name="L_Toe_y" type="hinge" pos="0 0 0" axis="0 1 0" armature="0.02" range="-180.0000 180.0000" stiffness="100"/>
+              <joint name="L_Toe_z" type="hinge" pos="0 0 0" axis="0 0 1" armature="0.02" range="-180.0000 180.0000" stiffness="100"/>
               
               <geom type="box" pos="0.0606 -0.0132 0.0270" size="0.01985 0.04785 0.0208" quat="1.0000 0.0000 0.0000 0.0000"/>
             </body>
@@ -128,9 +128,9 @@
               
               <joint name="R_Toe_x_transl" solreflimit="0.02 1" solimplimit="0.95 0.99 0.1" type="slide" pos="0 0 0" axis="1 0 0" range="-1 1" stiffness="0" damping="0" limited="true"/>
 
-              <joint name="R_Toe_x" type="hinge" pos="0 0 0" axis="1 0 0" armature="0.02" range="-180.0000 180.0000" stiffness="10"/>
-              <joint name="R_Toe_y" type="hinge" pos="0 0 0" axis="0 1 0" armature="0.02" range="-180.0000 180.0000" stiffness="10"/>
-              <joint name="R_Toe_z" type="hinge" pos="0 0 0" axis="0 0 1" armature="0.02" range="-180.0000 180.0000" stiffness="10"/>
+              <joint name="R_Toe_x" type="hinge" pos="0 0 0" axis="1 0 0" armature="0.02" range="-180.0000 180.0000" stiffness="100"/>
+              <joint name="R_Toe_y" type="hinge" pos="0 0 0" axis="0 1 0" armature="0.02" range="-180.0000 180.0000" stiffness="100"/>
+              <joint name="R_Toe_z" type="hinge" pos="0 0 0" axis="0 0 1" armature="0.02" range="-180.0000 180.0000" stiffness="100"/>
               
               <geom type="box" pos="0.0627 0.0127 0.0249" size="0.01985 0.04785 0.0208" quat="1.0000 0.0000 0.0000 0.0000"/>
             </body>

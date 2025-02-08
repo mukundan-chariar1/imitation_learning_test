@@ -281,8 +281,11 @@ class SMPLHumanoid(PipelineEnv):
         new_state=self.pipeline_step(state_prev, action)
         upward_reward=jp.where(new_state.x.pos[0, :] >= jp.ones(3)*0.5, new_state.x.pos[0, :]**2*self._upward_reward_hip_weight, 0)[-1]+jp.where(new_state.x.pos[13, :] >= jp.ones(3)*1, new_state.x.pos[0, :]**2*self._upward_reward_head_weight, 0)[-1]
 
-        vel_reward=(new_state.subtree_com[[0, 9, 10, 11, 12, 13], -1]-state_prev.subtree_com[[0, 9, 10, 11, 12, 13], -1])/self.dt
-        vel_reward=jp.where(vel_reward>=jp.ones((6, ))*0.5, vel_reward*self._vel_reward_weight, 0).sum()
+        vel_reward=(new_state.subtree_com[[9, 10, 11, 12, 13], -1]-state_prev.subtree_com[[9, 10, 11, 12, 13], -1])/self.dt
+        vel_reward=jp.where(vel_reward>jp.zeros((5, )), vel_reward*self._vel_reward_weight, -1).sum()
+
+        vel_reward=(new_state.subtree_com[[0], -1]-state_prev.subtree_com[[0], -1])/self.dt
+        vel_reward=jp.where(vel_reward>jp.zeros((1, )), vel_reward*self._vel_reward_weight**2, -1).sum()
 
         upright_reward=jp.where(jp.abs(quaternion_to_rotation_6d(new_state.x.rot[[0, 9, 10, 11, 12, 13], :])-quaternion_to_rotation_6d(jp.array([[1, 0, 0, 0]])))<=0.1, self._upright_reward_weight, 0).sum()
 
