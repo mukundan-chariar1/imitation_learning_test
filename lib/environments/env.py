@@ -167,7 +167,7 @@ class SMPLHumanoid_basic(PipelineEnv):
         return obs
     
 
-class SMPLHumanoid_imitator(PipelineEnv):
+class SMPLHumanoid_imitator_old(PipelineEnv):
     """
     Uses smpl formatted humanoid, adds imitation step to retrieve SMPL pose from body model
     """
@@ -310,6 +310,98 @@ class SMPLHumanoid(PipelineEnv):
 
         return state.replace(
             pipeline_state=new_state, obs=obs, reward=reward, done=done
+        )
+    
+    def _convert_obs(self, pipeline_state: base.State,) -> jax.Array:
+        temp=pipeline_state.q.copy()
+        root_transl=temp[0:3].copy()
+        root_rot=quaternion_to_rotation_6d(temp[3:7].copy())
+        transl_jnts=temp[_C.INDEXING.TRANSL_JNT_IDXS].copy()
+        rot_jnts=temp[_C.INDEXING.ROT_JNT_IDX].copy().reshape((-1, 3))
+        converted_rot_jnts=axis_angle_to_rotation_6d(rot_jnts).flatten()
+
+        q=jp.zeros(root_transl.shape[0]+root_rot.shape[0]+converted_rot_jnts.shape[0]+23)
+        q=q.at[0:3].set(root_transl)
+        q=q.at[3:9].set(root_rot)
+        q=q.at[_C.INDEXING.R6D_TRANSL_IDXS].set(transl_jnts)
+        q=q.at[_C.INDEXING.R6D_ROT_IDXS].set(converted_rot_jnts)
+
+        return jp.concatenate([q, pipeline_state.qd])
+
+    def _get_obs(self, pipeline_state: base.State, action: jax.Array) -> jax.Array:
+        if self._use_6d_notation:
+            obs=self._convert_obs(pipeline_state=pipeline_state)
+        else: 
+            obs=jp.concatenate([pipeline_state.q, pipeline_state.qd])
+        return obs
+    
+class SMPLHumanoid_imitator(PipelineEnv):
+
+    # TODO:
+    #   - convert x and xd to q and qd
+    #   - may be in quaternion/ other format for q
+    #   - axis angle in qd
+    #   - q and qd may be local, figure out how to convert it
+
+    def __init__(self, use_newton_solver: Optional[bool]=True, use_6d_notation: Optional[bool]=False, ignore_joint_positions: Optional[bool]=True, **kwargs):
+        path = 'lib/model/smpl_humanoid_v6.xml'
+        mj_model = mujoco.MjModel.from_xml_path(path)
+        if use_newton_solver: mj_model.opt.solver = mujoco.mjtSolver.mjSOL_NEWTON
+        sys = mjcf.load_model(mj_model)
+
+        super().__init__(sys=sys, **kwargs)
+
+        kwargs['n_frames'] = kwargs.get('n_frames', 1)
+
+        self._upright_reward_weight=0.2
+        self._upward_reward_hip_weight=4
+        self._upward_reward_head_weight=5
+        self._vel_reward_weight=15
+
+        self._use_6d_notation=use_6d_notation
+        self._ignore_joint_positions=ignore_joint_positions
+
+        self.initial_geoms=sys.geom_size
+        self.initial_qpos=sys.init_q
+        self.initial_body_pos=sys.body_pos
+        self.initial_mass=sys.body_mass
+        self.initial_joint_lim=sys.jnt_range
+
+    def reset(self, rng):
+        pass
+
+    def reset_(self, initialization: tuple) -> State:
+        qpos=jp.zeros_like(self.sys.init_q)
+        root_transl=self.sys.init_q[0:3].copy()
+        qpos=qpos.at[0:3].set(root_transl)
+        root_rot=axis_angle_to_quaternion(initialization[0][:3].copy())
+        qpos=qpos.at[3:7].set(root_rot)
+        transl_jnts=self.sys.init_q[_C.INDEXING.TRANSL_JNT_IDXS].copy()
+        qpos=qpos.at[_C.INDEXING.TRANSL_JNT_IDXS].set(transl_jnts)
+        rot_joints=initialization[0][_C.INDEXING.ROT_JNT_IDX].copy()
+        qpos=qpos.at[_C.INDEXING.ROT_JNT_IDX].set(rot_joints)
+
+        qvel=jp.zeros(self.sys.qd_size(),)
+        qvel=qvel.at[3:6].set(initialization[1][:3].copy())
+        qvel=qvel.at[_C.INDEXING.ROT_JNT_IDX-1].set(initialization[1][_C.INDEXING.ROT_JNT_IDX].copy())
+
+        pipeline_state = self.pipeline_init(qpos, qvel)
+        obs = self._get_obs(pipeline_state, jp.zeros(self.sys.act_size()))
+        reward, done, zero = jp.zeros(3)
+        metrics={'counter': zero,}
+        return State(pipeline_state, obs, reward, done, metrics)
+
+    def step(self, state: State, action: jax.Array) -> State:
+        state_prev = state.pipeline_state
+        count=state.metrics['counter']+1
+        new_state=self.pipeline_step(state_prev, action)
+        
+        obs = self._get_obs(new_state, action)
+
+        state.metrics.update(counter=count)
+
+        return state.replace(
+            pipeline_state=new_state, obs=obs, reward=0.0, done=0.0
         )
     
     def _convert_obs(self, pipeline_state: base.State,) -> jax.Array:

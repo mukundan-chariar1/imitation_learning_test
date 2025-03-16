@@ -14,7 +14,7 @@ import functools
 from brax import envs
 from brax.envs import create
 
-from lib.utils.math import *
+from lib.controllers.load_traj import get_traj
 
 import mujoco
 import mujoco.mjx as mjx
@@ -23,14 +23,59 @@ import mediapy as media
 from pdb import set_trace as st
 from jax.debug import breakpoint as jst
 
-with open('/home/mukundan/Desktop/Summer_SEM/imitation_learning/lib/model/smpl_humanoid_v5.xml', 'r') as f:
-  xml = f.read()
+import matplotlib.pyplot as plt
+
+def plot_states_vs_reference_individual(X_sim, X_ref):
+    X_sim = np.array(X_sim)
+    X_ref = np.array(X_ref)
+
+    nx = X_sim.shape[1]
+    N = X_sim.shape[0]
+
+    time = np.arange(N)
+
+    for i in range(nx):
+        plt.figure(figsize=(10, 4))
+        plt.plot(time, X_sim[:, i], label=f'X_sim[{i}]', marker='o')
+        plt.plot(time, X_ref[:, i], label=f'X_ref[{i}]', linestyle='--', marker='x')
+        plt.xlabel('Time Step')
+        plt.ylabel(f'State {i}')
+        plt.title(f'State {i}: Simulated vs Reference')
+        plt.legend()
+        plt.grid(True)
+        plt.show()
+
+def plot_states_vs_reference(X_sim, X_ref):
+    X_sim = np.array(X_sim)
+    X_ref = np.array(X_ref)
+
+    nx = X_sim.shape[1]
+    N = X_sim.shape[0]
+
+    time = np.arange(N)
+
+    fig, axes = plt.subplots(nx, 1, figsize=(10, 2 * nx))
+
+    if nx == 1:
+        axes = [axes]
+
+    for i in range(nx):
+        axes[i].plot(time, X_sim[:, i], label=f'X_sim[{i}]', marker='o')
+        axes[i].plot(time, X_ref[:, i], label=f'X_ref[{i}]', linestyle='--', marker='x')
+        axes[i].set_ylabel(f'State {i}')
+        axes[i].legend()
+        axes[i].grid(True)
+
+    axes[-1].set_xlabel('Time Step')
+
+    plt.tight_layout()
+    plt.show()
 
 rng = jax.random.PRNGKey(0)
 rng, sub_rng, key = jax.random.split(rng, 3)
 
 envs.register_environment('custom_humanoid', SMPLHumanoid)
-
+envs.register_environment('imitator_humanoid', SMPLHumanoid_imitator)
 env = create(env_name='custom_humanoid', backend='mjx', use_6d_notation=True)
 partial_randomization_fn = functools.partial(
       domain_randomize_no_vmap, env=env
@@ -39,7 +84,7 @@ randomization_fn = functools.partial(
       partial_randomization_fn, rng=sub_rng
     )
 wrapped_env=DomainRandomizationpWrapper(env, randomization_fn=randomization_fn)
-state = env.reset(rng)
+state = wrapped_env.reset(rng)
 
 # test_environment_for_debug(wrapped_env, headless=False, randomize=False)
 
@@ -58,124 +103,103 @@ Dc = jp.block([
     [jp.zeros((nu, nx+nu))]
 ])
 
-# Compute the matrix exponential of Dc * dt
-D = jscipy.linalg.expm(Dc * env.dt)
+D = jscipy.linalg.expm(Dc * (wrapped_env.dt/5))
 
-# Extract submatrices A and B
-A = D[:nx, :nx]  # A is the top-left nx x nx block
+A = D[:nx, :nx]
 B = D[:nx, nx:nx+nu]
 
-Q=jp.eye(nx)
-R=jp.eye(nu)
+Q=jp.block([[jp.eye(nu), jp.zeros((nu, nu))], [jp.zeros((nu, nu)), jp.zeros((nu, nu))]])
+R=jp.zeros((nu, nu))
 
 Qf=10*jp.eye(nx)
 
-def fhlqr(
-  A: jax.Array,  # State transition matrix (nx, nx)
-  B: jax.Array,  # Control input matrix (nx, nu)
-  Q: jax.Array,  # State cost matrix (nx, nx)
-  R: jax.Array,  # Control cost matrix (nu, nu)
-  Qf: jax.Array,  # Terminal state cost matrix (nx, nx)
-  N: int=100  # Horizon size
-  ) -> tuple[list, list]:
-  """
-  Finite-horizon Linear Quadratic Regulator (LQR) solver.
-
-  Args:
-  A: State transition matrix (nx, nx).
-  B: Control input matrix (nx, nu).
-  Q: State cost matrix (nx, nx).
-  R: Control cost matrix (nu, nu).
-  Qf: Terminal state cost matrix (nx, nx).
-  N: Horizon size.
-
-  Returns:
-  P: List of cost-to-go matrices (nx, nx) for each time step.
-  K: List of feedback gain matrices (nu, nx) for each time step.
-  """
-  # Check sizes of everything
-  nx, nu = B.shape
-  assert A.shape == (nx, nx), "A must be of shape (nx, nx)"
-  assert Q.shape == (nx, nx), "Q must be of shape (nx, nx)"
-  assert R.shape == (nu, nu), "R must be of shape (nu, nu)"
-  assert Qf.shape == (nx, nx), "Qf must be of shape (nx, nx)"
-
-  # Instantiate P and K
-  P = [jp.zeros((nx, nx)) for _ in range(N)]  # Cost-to-go matrices
-  K = [jp.zeros((nu, nx)) for _ in range(N - 1)]  # Feedback gain matrices
-
-  # Initialize P[N-1] with Qf
-  P[-1] = Qf.copy()
-
-  # Riccati recursion
-  for k in range(N - 2, -1, -1):
-    K[k] = jp.linalg.inv(R + B.T @ P[k + 1] @ B) @ (B.T @ P[k + 1] @ A)
-    P[k] = Q + A.T @ P[k + 1] @ A - A.T @ P[k + 1] @ B @ K[k]
-
-  return P, K
-
-def ihlqr(
-    A: jax.Array,  # State transition matrix (nx, nx)
-    B: jax.Array,  # Control input matrix (nx, nu)
-    Q: jax.Array,  # State cost matrix (nx, nx)
-    R: jax.Array,  # Control cost matrix (nu, nu)
-    max_iter: int = 1000,  # Maximum iterations for Riccati
-    tol: float = 1e-5  # Convergence tolerance
-) -> tuple[jax.Array, jax.Array]:
-    """
-    Infinite-horizon Linear Quadratic Regulator (LQR) solver using JAX NumPy.
-
-    Args:
-        A: State transition matrix (nx, nx).
-        B: Control input matrix (nx, nu).
-        Q: State cost matrix (nx, nx).
-        R: Control cost matrix (nu, nu).
-        max_iter: Maximum number of iterations for Riccati recursion.
-        tol: Convergence tolerance.
-
-    Returns:
-        P: Cost-to-go matrix (nx, nx).
-        K: Feedback gain matrix (nu, nx).
-
-    Raises:
-        RuntimeError: If the Riccati recursion does not converge within max_iter.
-    """
-    # Get size of x and u from B
+def fhlqr(A: jax.Array, B: jax.Array, Q: jax.Array, R: jax.Array, Qf: jax.Array, N: int=100) -> tuple[list, list]:
     nx, nu = B.shape
+    assert A.shape == (nx, nx), "A must be of shape (nx, nx)"
+    assert Q.shape == (nx, nx), "Q must be of shape (nx, nx)"
+    assert R.shape == (nu, nu), "R must be of shape (nu, nu)"
+    assert Qf.shape == (nx, nx), "Qf must be of shape (nx, nx)"
 
-    # Initialize P with Q
+    P = [jp.zeros((nx, nx)) for _ in range(N)]
+    K = [jp.zeros((nu, nx)) for _ in range(N - 1)]
+
+    P[-1] = Qf.copy()
+
+    for k in range(N - 2, -1, -1):
+        K[k] = jp.linalg.inv(R + B.T @ P[k + 1] @ B) @ (B.T @ P[k + 1] @ A)
+        P[k] = Q + A.T @ P[k + 1] @ A - A.T @ P[k + 1] @ B @ K[k]
+
+    return P, K
+
+def ihlqr(A: jax.Array, B: jax.Array, Q: jax.Array, R: jax.Array, max_iter: int = 1000, tol: float = 1e-5) -> tuple[jax.Array, jax.Array]:
+    nx, nu = B.shape
     P = Q.copy()
 
-    # Riccati recursion
     for riccati_iter in range(max_iter):
-        # Compute feedback gain matrix K
         K = jp.linalg.inv(R + B.T @ P @ B) @ (B.T @ P @ A)
-        
-        # Update cost-to-go matrix P
         P_new = Q + A.T @ P @ A - A.T @ P @ B @ K
 
-        # Check for convergence
         if jp.linalg.norm(P - P_new, ord=jp.inf) < tol:
             return P_new, K
 
         P = P_new
+    raise RuntimeError(f"ihlqr did not converge, tol: {jp.linalg.norm(P - P_new, ord=jp.inf):.8f}")
 
-    # If max_iter is reached without convergence
-    raise RuntimeError("ihlqr did not converge")
+rot, ang=get_traj()
+N=rot.shape[0]
 
-
-# Step 2: Compute control setpoints
-
-P, K=fhlqr(A, B, Q, R, Qf)
-
-st()
-
+# P, K=fhlqr(A, B, Q, R, Qf, N)
 P_new, K=ihlqr(A, B, Q, R)
 
-st()
+X_ref=jp.concatenate((rot.reshape((N, -1)), ang.reshape(N, -1)), axis=-1)
+x0=X_ref[0]
+
+X_sim = [jp.zeros(nx) for _ in range(N)]  # Simulated states
+U_sim = [jp.zeros(nu) for _ in range(N-1)]  # Simulated control inputs
+
+X_sim[0] = x0
+
+for i in range(N-1):
+    # U_sim[i] = jp.clip(-K[i] @ (X_sim[i] - X_ref[i]), u_min, u_max)
+    # U_sim[i]=-K[i] @ (X_sim[i] - X_ref[i])
+    U_sim[i]=-K @ (X_sim[i] - X_ref[i])
+    X_sim[i+1] = A @ X_sim[i] + B @ U_sim[i]
+
+X_sim=jp.stack(X_sim)
+initialization=(X_sim[0, :X_sim.shape[1]//2], X_sim[0, X_sim.shape[1]//2:])
+
+# plot_states_vs_reference_individual(X_sim, X_ref)
 
 rng = jax.random.PRNGKey(0)
 rng, sub_rng, key = jax.random.split(rng, 3)
 
-state = env.reset(rng)
-state = env.step(state, jp.zeros(env.action_size))
+env = create(env_name='imitator_humanoid', backend='mjx', use_6d_notation=True, action_repeat=1)
+partial_randomization_fn = functools.partial(
+      domain_randomize_no_vmap, env=env
+    )
+randomization_fn = functools.partial(
+      partial_randomization_fn, rng=sub_rng
+    )
+wrapped_env=DomainRandomizationpWrapper(env, randomization_fn=randomization_fn)
+state = wrapped_env.reset_(initialization)
+
+jit_env_reset = jax.jit(wrapped_env.reset_)
+jit_env_step = jax.jit(wrapped_env.step)
+
+rollout = []
+rng = jax.random.PRNGKey(seed=1)
+state = jit_env_reset(initialization)
+for t in range(len(U_sim)):
+    rollout.append(state.pipeline_state)
+    act=U_sim[i][3:].copy()
+    state = jit_env_step(state, act)
+
+create_interactive_rollout(env=wrapped_env, rollout=rollout, headless=False)
+
+st()
+
+# rng = jax.random.PRNGKey(0)
+# rng, sub_rng, key = jax.random.split(rng, 3)
+
+# state = wrapped_env.reset(rng)
+# state = wrapped_env.step(state, jp.zeros(wrapped_env.action_size))
