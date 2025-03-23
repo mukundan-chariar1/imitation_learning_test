@@ -351,7 +351,7 @@ class SMPLHumanoid_imitator(PipelineEnv):
 
         super().__init__(sys=sys, **kwargs)
 
-        kwargs['n_frames'] = kwargs.get('n_frames', 1)
+        kwargs['n_frames'] = kwargs.get('n_frames', 5)
 
         self._upright_reward_weight=0.2
         self._upward_reward_hip_weight=4
@@ -371,19 +371,23 @@ class SMPLHumanoid_imitator(PipelineEnv):
         pass
 
     def reset_(self, initialization: tuple) -> State:
-        qpos=jp.zeros_like(self.sys.init_q)
-        root_transl=self.sys.init_q[0:3].copy()
-        qpos=qpos.at[0:3].set(root_transl)
-        root_rot=axis_angle_to_quaternion(initialization[0][:3].copy())
-        qpos=qpos.at[3:7].set(root_rot)
-        transl_jnts=self.sys.init_q[_C.INDEXING.TRANSL_JNT_IDXS].copy()
-        qpos=qpos.at[_C.INDEXING.TRANSL_JNT_IDXS].set(transl_jnts)
-        rot_joints=initialization[0][_C.INDEXING.ROT_JNT_IDX].copy()
-        qpos=qpos.at[_C.INDEXING.ROT_JNT_IDX].set(rot_joints)
+        if len(initialization)==2:
+            qpos=jp.zeros_like(self.sys.init_q)
+            root_transl=self.sys.init_q[0:3].copy()
+            qpos=qpos.at[0:3].set(root_transl)
+            root_rot=axis_angle_to_quaternion(initialization[0][:3].copy()+jp.array([jp.pi, 0, 0]))
+            qpos=qpos.at[3:7].set(root_rot)
+            transl_jnts=self.sys.init_q[_C.INDEXING.TRANSL_JNT_IDXS].copy()
+            qpos=qpos.at[_C.INDEXING.TRANSL_JNT_IDXS].set(transl_jnts)
+            rot_joints=initialization[0][_C.INDEXING.ROT_JNT_IDX].copy()
+            qpos=qpos.at[_C.INDEXING.ROT_JNT_IDX].set(rot_joints)
 
-        qvel=jp.zeros(self.sys.qd_size(),)
-        qvel=qvel.at[3:6].set(initialization[1][:3].copy())
-        qvel=qvel.at[_C.INDEXING.ROT_JNT_IDX-1].set(initialization[1][_C.INDEXING.ROT_JNT_IDX].copy())
+            qvel=jp.zeros(self.sys.qd_size(),)
+            qvel=qvel.at[3:6].set(initialization[1][:3].copy())
+            qvel=qvel.at[_C.INDEXING.ROT_JNT_IDX-1].set(initialization[1][_C.INDEXING.ROT_JNT_IDX].copy())
+        else:
+            qpos=self.sys.init_q
+            qvel=jp.zeros(self.sys.qd_size(),)
 
         pipeline_state = self.pipeline_init(qpos, qvel)
         obs = self._get_obs(pipeline_state, jp.zeros(self.sys.act_size()))

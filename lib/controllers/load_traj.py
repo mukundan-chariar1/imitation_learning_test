@@ -6,7 +6,7 @@ import jax.numpy as jp
 import numpy as np
 from scipy.interpolate import CubicSpline
 
-def upsample_signal_cubic(original_signal, original_dt=1/40, upsampled_dt=0.003/5):
+def upsample_signal_cubic(original_signal, original_dt=1/40, upsampled_dt=0.003):
     """
     Upsample a signal using cubic spline interpolation.
 

@@ -103,7 +103,8 @@ Dc = jp.block([
     [jp.zeros((nu, nx+nu))]
 ])
 
-D = jscipy.linalg.expm(Dc * (wrapped_env.dt/5))
+# D = jscipy.linalg.expm(Dc * (wrapped_env.dt/5))
+D=jscipy.linalg.expm(Dc*wrapped_env.dt)
 
 A = D[:nx, :nx]
 B = D[:nx, nx:nx+nu]
@@ -170,18 +171,23 @@ initialization=(X_sim[0, :X_sim.shape[1]//2], X_sim[0, X_sim.shape[1]//2:])
 
 # plot_states_vs_reference_individual(X_sim, X_ref)
 
+# st()
+
 rng = jax.random.PRNGKey(0)
 rng, sub_rng, key = jax.random.split(rng, 3)
 
-env = create(env_name='imitator_humanoid', backend='mjx', use_6d_notation=True, action_repeat=1)
-partial_randomization_fn = functools.partial(
-      domain_randomize_no_vmap, env=env
-    )
+# env = create(env_name='imitator_humanoid', backend='mjx', use_6d_notation=True, action_repeat=1)
+# partial_randomization_fn = functools.partial(
+#       domain_randomize_no_vmap, env=env
+#     )
+
+env=SMPLHumanoid_imitator()
 randomization_fn = functools.partial(
       partial_randomization_fn, rng=sub_rng
     )
 wrapped_env=DomainRandomizationpWrapper(env, randomization_fn=randomization_fn)
-state = wrapped_env.reset_(initialization)
+# state = wrapped_env.reset_(initialization)
+state=wrapped_env.reset_(([], [], []))
 
 jit_env_reset = jax.jit(wrapped_env.reset_)
 jit_env_step = jax.jit(wrapped_env.step)
@@ -189,10 +195,20 @@ jit_env_step = jax.jit(wrapped_env.step)
 rollout = []
 rng = jax.random.PRNGKey(seed=1)
 state = jit_env_reset(initialization)
+
+x_pos=quaternion_to_axis_angle(state.pipeline_state.x.rot.copy()).flatten()
+x_vel=state.pipeline_state.xd.ang.copy().flatten()
+x_ref=jp.concatenate((x_pos, x_vel))
+
 for t in range(len(U_sim)):
     rollout.append(state.pipeline_state)
-    act=U_sim[i][3:].copy()
-    state = jit_env_step(state, act)
+    x_pos=quaternion_to_axis_angle(state.pipeline_state.x.rot.copy()).flatten()
+    x_vel=state.pipeline_state.xd.ang.copy().flatten()
+    x=jp.concatenate((x_pos, x_vel))
+    # act=U_sim[i][3:].copy()
+    # act=-K @ (x - X_ref[i])
+    act=-K @ (x - x_ref)
+    state = jit_env_step(state, act[3:])
 
 create_interactive_rollout(env=wrapped_env, rollout=rollout, headless=False)
 
