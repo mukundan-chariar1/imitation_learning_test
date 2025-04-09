@@ -28,7 +28,7 @@ decorator==5.1.1
 defusedxml==0.7.1
 dm-env==1.6
 dm-tree==0.1.8
-etils==1.8.0
+etils==1.12.2
 executing==2.0.1
 fastjsonschema==2.20.0
 ffmpeg==1.4

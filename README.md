@@ -1,5 +1,64 @@
 # Imitation learning using brax and torch
 
+## Docker Setup
+
+### Prerequisites
+- Docker installed on your system
+- NVIDIA GPU with appropriate drivers (for GPU acceleration)
+- NVIDIA Container Toolkit installed (for GPU access in Docker)
+
+### Docker Commands
+
+#### Building the Docker Image
+Build the image with all required dependencies:
+```bash
+docker build -t irl-project .
+```
+
+#### Running the Container
+Run the container with GPU support and current directory mounted:
+```bash
+docker run --gpus all -it --rm -v "${PWD}:/app" irl-project
+```
+
+This command:
+- `--gpus all`: Enables GPU access
+- `-it`: Provides interactive terminal
+- `--rm`: Automatically removes the container when exited
+- `-v "${PWD}:/app"`: Mounts current directory to /app in the container
+
+#### Common Operations
+
+**Attaching to a Running Container**
+If you need to connect to an already running container:
+```bash
+# First, find the container ID
+docker ps
+# Then attach to it
+docker exec -it CONTAINER_ID bash
+```
+
+**Exiting a Container**
+Simply type `exit` in the terminal to leave the container. Since we use `--rm`, the container will be automatically removed when you exit.
+
+**Running Specific Commands**
+To run a specific Python script in the container:
+```bash
+docker run --gpus all -it --rm -v "${PWD}:/app" irl-project python your_script.py
+```
+
+**Persisting Data**
+All changes made in the `/app` directory are automatically saved to your host machine's current directory.
+
+**Troubleshooting GPU Issues**
+If you encounter GPU-related issues, verify that NVIDIA drivers are working:
+```bash
+# Inside the container
+nvidia-smi
+```
+
+If this fails, try forcing CPU mode by modifying the entrypoint script.
+
 ## Notes
 
 Attributes of state for generalized
