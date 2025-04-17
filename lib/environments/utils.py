@@ -38,7 +38,7 @@ def axis_angle_to_quaternion(axis_angle: jax.Array) -> jax.Array:
     # Compute the angle (magnitude of the vector)
     angles = jp.linalg.norm(axis_angle, axis=-1, keepdims=True)
     half_angles = angles * 0.5
-    eps = 1e-6
+    eps = 1e-8
 
     sin_half_angles_over_angles=jp.where(jp.abs(angles)<eps, 0.5-(angles**2)/48, jp.sin(half_angles)/angles)
 
@@ -46,7 +46,9 @@ def axis_angle_to_quaternion(axis_angle: jax.Array) -> jax.Array:
     quaternions = jp.concatenate(
         [jp.cos(half_angles), axis_angle * sin_half_angles_over_angles], axis=-1
     )
-    
+
+    quaternions=quaternions / (jp.linalg.norm(quaternions, axis=-1, keepdims=True) + eps)
+
     return quaternions
 
 def axis_angle_to_matrix(axis_angle: jax.Array) -> jax.Array:
@@ -66,7 +68,7 @@ def quaternion_to_axis_angle(quaternion: jp.ndarray) -> jp.ndarray:
         axis_angle: An axis-angle array of shape (..., 3).
     """
     # Normalize the quaternion to ensure it's a unit quaternion
-    quaternion = quaternion / jp.linalg.norm(quaternion, axis=-1, keepdims=True)
+    quaternion = quaternion / (jp.linalg.norm(quaternion, axis=-1, keepdims=True)+1e-8)
 
     # Extract the real part (scalar) and imaginary part (vector)
     w = quaternion[..., 0]  # Scalar part
@@ -77,7 +79,7 @@ def quaternion_to_axis_angle(quaternion: jp.ndarray) -> jp.ndarray:
 
     # Compute the axis
     norm_xyz = jp.linalg.norm(xyz, axis=-1, keepdims=True)
-    axis = jp.where(norm_xyz < 1e-6, jp.zeros_like(xyz), xyz / norm_xyz)
+    axis = jp.where(norm_xyz > 1e-8, xyz / norm_xyz, jp.array([1.0, 0.0, 0.0]))
 
     # Combine axis and angle into axis-angle representation
     axis_angle = axis * angle[..., None]

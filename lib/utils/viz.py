@@ -69,3 +69,10 @@ def display_init_positions(env: Env, headless: Optional[bool]=True, path: Option
     state = jit_env_reset(rng=rng)
 
     create_interactive_rollout(env, [state.pipeline_state], headless=headless, path=path)
+
+def display_init_positions_imitator(env: Env, initialization: tuple, headless: Optional[bool]=True, path: Optional[str]='temp.html') -> None:
+    jit_env_reset = jax.jit(env.reset_)
+    rng = jax.random.PRNGKey(seed=1)
+    state = jit_env_reset(initialization)
+
+    create_interactive_rollout(env, [state.pipeline_state], headless=headless, path=path)

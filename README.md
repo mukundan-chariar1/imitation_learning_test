@@ -1,5 +1,64 @@
 # Imitation learning using brax and torch
 
+## Docker Setup
+
+### Prerequisites
+- Docker installed on your system
+- NVIDIA GPU with appropriate drivers (for GPU acceleration)
+- NVIDIA Container Toolkit installed (for GPU access in Docker)
+
+### Docker Commands
+
+#### Building the Docker Image
+Build the image with all required dependencies:
+```bash
+docker build -t irl-project .
+```
+
+#### Running the Container
+Run the container with GPU support and current directory mounted:
+```bash
+docker run --gpus all -it --rm -v "${PWD}:/app" irl-project
+```
+
+This command:
+- `--gpus all`: Enables GPU access
+- `-it`: Provides interactive terminal
+- `--rm`: Automatically removes the container when exited
+- `-v "${PWD}:/app"`: Mounts current directory to /app in the container
+
+#### Common Operations
+
+**Attaching to a Running Container**
+If you need to connect to an already running container:
+```bash
+# First, find the container ID
+docker ps
+# Then attach to it
+docker exec -it CONTAINER_ID bash
+```
+
+**Exiting a Container**
+Simply type `exit` in the terminal to leave the container. Since we use `--rm`, the container will be automatically removed when you exit.
+
+**Running Specific Commands**
+To run a specific Python script in the container:
+```bash
+docker run --gpus all -it --rm -v "${PWD}:/app" irl-project python your_script.py
+```
+
+**Persisting Data**
+All changes made in the `/app` directory are automatically saved to your host machine's current directory.
+
+**Troubleshooting GPU Issues**
+If you encounter GPU-related issues, verify that NVIDIA drivers are working:
+```bash
+# Inside the container
+nvidia-smi
+```
+
+If this fails, try forcing CPU mode by modifying the entrypoint script.
+
 ## Notes
 
 Attributes of state for generalized
@@ -500,3 +559,6 @@ R_Hand_y_transl
 - 22                 'R_Elbow', 
 - 23                     'R_Wrist', 
 - 24                         'R_Hand'
+
+
+'nq', 'nv', 'nu', 'na', 'nbody', 'njnt', 'ngeom', 'nsite', 'ncam', 'nmesh', 'nmeshvert', 'nmeshface', 'nmat', 'npair', 'nexclude', 'neq', 'ngravcomp', 'nnumeric', 'nuserdata', 'ntuple', 'nsensor', 'nkey', 'nM', 'opt', 'stat', 'qpos0', 'qpos_spring', 'body_parentid', 'body_rootid', 'body_weldid', 'body_jntnum', 'body_jntadr', 'body_dofnum', 'body_dofadr', 'body_geomnum', 'body_geomadr', 'body_pos', 'body_quat', 'body_ipos', 'body_iquat', 'body_mass', 'body_subtreemass', 'body_inertia', 'body_gravcomp', 'body_invweight0', 'jnt_type', 'jnt_qposadr', 'jnt_dofadr', 'jnt_bodyid', 'jnt_limited', 'jnt_actfrclimited', 'jnt_actgravcomp', 'jnt_solref', 'jnt_solimp', 'jnt_pos', 'jnt_axis', 'jnt_stiffness', 'jnt_range', 'jnt_actfrcrange', 'jnt_margin', 'dof_bodyid', 'dof_jntid', 'dof_parentid', 'dof_Madr', 'dof_solref', 'dof_solimp', 'dof_frictionloss', 'dof_armature', 'dof_damping', 'dof_invweight0', 'dof_M0', 'geom_type', 'geom_contype', 'geom_conaffinity', 'geom_condim', 'geom_bodyid', 'geom_dataid', 'geom_group', 'geom_matid', 'geom_priority', 'geom_solmix', 'geom_solref', 'geom_solimp', 'geom_size', 'geom_rbound', 'geom_pos', 'geom_quat', 'geom_friction', 'geom_margin', 'geom_gap', 'geom_rgba', 'site_bodyid', 'site_pos', 'site_quat', 'cam_mode', 'cam_bodyid', 'cam_targetbodyid', 'cam_pos', 'cam_quat', 'cam_poscom0', 'cam_pos0', 'cam_mat0', 'mesh_vertadr', 'mesh_faceadr', 'mesh_graphadr', 'mesh_vert', 'mesh_face', 'mesh_graph', 'mat_rgba', 'pair_dim', 'pair_geom1', 'pair_geom2', 'pair_solref', 'pair_solreffriction', 'pair_solimp', 'pair_margin', 'pair_gap', 'pair_friction', 'exclude_signature', 'eq_type', 'eq_obj1id', 'eq_obj2id', 'eq_active0', 'eq_solref', 'eq_solimp', 'eq_data', 'actuator_trntype', 'actuator_dyntype', 'actuator_gaintype', 'actuator_biastype', 'actuator_trnid', 'actuator_actadr', 'actuator_actnum', 'actuator_ctrllimited', 'actuator_forcelimited', 'actuator_actlimited', 'actuator_dynprm', 'actuator_gainprm', 'actuator_biasprm', 'actuator_ctrlrange', 'actuator_forcerange', 'actuator_actrange', 'actuator_gear', 'numeric_adr', 'numeric_data', 'tuple_adr', 'tuple_size', 'tuple_objtype', 'tuple_objid', 'tuple_objprm', 'name_bodyadr', 'name_jntadr', 'name_geomadr', 'name_siteadr', 'name_camadr', 'name_meshadr', 'name_pairadr', 'name_eqadr', 'name_actuatoradr', 'name_sensoradr', 'name_numericadr', 'name_tupleadr', 'name_keyadr', 'names', 'gravity', 'viscosity', 'density', 'link', 'dof', 'actuator', 'init_q', 'elasticity', 'vel_damping', 'ang_damping', 'baumgarte_erp', 'spring_mass_scale', 'spring_inertia_scale', 'joint_scale_ang', 'joint_scale_pos', 'collide_scale', 'enable_fluid', 'link_names', 'link_types', 'link_parents', 'matrix_inv_iterations', 'solver_iterations', 'solver_maxls', 'mj_model'
