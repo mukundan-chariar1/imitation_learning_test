@@ -81,18 +81,24 @@ def load_rollout(num_traj: int=0,
 def get_observation(num_trajs: int=100,
                     save_folder: str='trajectories'):
     
-    observations=[]
-    # for rollout in load_rollouts(num_trajs, save_folder):
-    for rollout_idx in range(num_trajs):
-        q, qd=[], []
-        rollout=load_rollout(rollout_idx)
-        for r in rollout:
-            q.append(r.q)
-            qd.append(r.qd)
-        q=jp.stack(q)
-        qd=jp.stack(qd)
-        observations.append(jp.concatenate((q, qd), axis=-1))
-    return observations
+    if os.path.exists(os.path.join(save_folder, 'observations.pkl')):
+        with open(os.path.join(save_folder, 'observations.pkl'), 'rb') as f:  # 'wb' = write binary
+            observations=pickle.load(f)
+        return observations
+    
+    else:
+        observations=[]
+        # for rollout in load_rollouts(num_trajs, save_folder):
+        for rollout_idx in range(num_trajs):
+            q, qd=[], []
+            rollout=load_rollout(rollout_idx)
+            for r in rollout:
+                q.append(r.q)
+                qd.append(r.qd)
+            q=jp.stack(q)
+            qd=jp.stack(qd)
+            observations.append(jp.concatenate((q, qd), axis=-1))
+        return observations
 
 # Example usage
 if __name__ == "__main__":
@@ -100,4 +106,7 @@ if __name__ == "__main__":
 
     # save_rollouts(inference_fn, num_trajs=100)
 
-    get_observation()
+    observations=get_observation()
+
+    with open(os.path.join('trajectories', "observations.pkl"), 'wb') as f:  # 'wb' = write binary
+        pickle.dump(observations, f)

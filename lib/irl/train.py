@@ -1,176 +1,259 @@
 import jax
-import jax.numpy as jnp
-from flax import linen as nn
-from flax.training import train_state
+import jax.numpy as jp
+from flax import nnx
 import optax
-from tqdm import tqdm
+from typing import Dict, Tuple
 from functools import partial
-import numpy as np
 
-def train_GAN(
-    generator,
-    discriminator,
-    train_dataset,
-    rng,
-    plot_freq=100,
-    optimizer_name_G="adam",
-    optimizer_config_G={"learning_rate": 1e-3},
-    lr_scheduler_name_G=None,
-    lr_scheduler_config_G={},
-    optimizer_name_D="adam",
-    optimizer_config_D={"learning_rate": 1e-3},
-    lr_scheduler_name_D=None,
-    lr_scheduler_config_D={},
-    n_iters=10000,
-    batch_size=64,
-    recon_weight=1.0,
-    kl_weight=0.01,
-    adv_weight=0.001,
-):
-    # Initialize models
-    rng, init_rng_G, init_rng_D = jax.random.split(rng, 3)
+from tqdm import tqdm
+
+from lib.irl.gail import Generator, Discriminator
+from lib.irl.loss import D_real_loss_fn, D_fake_loss_fn, G_loss_fn, D_KL
+from lib.irl.utils import JAXDataLoader, Tracker, save_model, load_model
+from lib.utils.trajectory import get_observation
+
+from pdb import set_trace as st
+from jax.debug import breakpoint as jst
+
+def train_GAN(generator,
+              discriminator,
+              train_dataset,
+              rng,
+              optimizer_name_G="adamw",
+              optimizer_config_G=dict(learning_rate=1e-3),
+              optimizer_name_D="adamw",
+              optimizer_config_D=dict(learning_rate=1e-3),
+            #   n_iters=10000,
+              epochs=10,
+              batch_size=64,
+              recon_weight=1.0,
+              kl_weight=0.01,
+              adv_weight=0.001,
+              ):
+    optimizer_G = nnx.Optimizer(generator, getattr(optax, optimizer_name_G)(**optimizer_config_G))
+    optimizer_D = nnx.Optimizer(discriminator, getattr(optax, optimizer_name_D)(**optimizer_config_D))
+
+    train_loader = JAXDataLoader(train_dataset, batch_size=batch_size, shuffle=True)
+    tracker = Tracker(n_iters=epochs, plot_freq=10) #*len(train_loader)
     
-    # Create sample input for initialization
-    sample_input = jnp.ones((batch_size, *train_dataset[0][0].shape))
-    
-    # Initialize generator and discriminator
-    generator_params = generator.init(init_rng_G, sample_input, rng)
-    discriminator_params = discriminator.init(init_rng_D, sample_input)
+    iter_pbar = tqdm(range(epochs), desc="Training", unit="iter")
+    iter = 0
 
-    # Create optimizers
-    if lr_scheduler_name_G:
-        schedule = getattr(optax, lr_scheduler_name_G)(**lr_scheduler_config_G)
-        optimizer_G = optax.chain(
-            getattr(optax, optimizer_name_G)(**optimizer_config_G),
-            schedule
-        )
-    else:
-        optimizer_G = getattr(optax, optimizer_name_G)(**optimizer_config_G)
-
-    if lr_scheduler_name_D:
-        schedule = getattr(optax, lr_scheduler_name_D)(**lr_scheduler_config_D)
-        optimizer_D = optax.chain(
-            getattr(optax, optimizer_name_D)(**optimizer_config_D),
-            schedule
-        )
-    else:
-        optimizer_D = getattr(optax, optimizer_name_D)(**optimizer_config_D)
-
-    # Create training states
-    state_G = train_state.TrainState.create(
-        apply_fn=generator.apply,
-        params=generator_params,
-        tx=optimizer_G
-    )
-    
-    state_D = train_state.TrainState.create(
-        apply_fn=discriminator.apply,
-        params=discriminator_params,
-        tx=optimizer_D
-    )
-
-    # Create data loader (simplified version)
-    def data_loader(dataset, batch_size, rng):
-        while True:
-            rng, shuffle_rng = jax.random.split(rng)
-            idx = jax.random.permutation(shuffle_rng, len(dataset))
-            for i in range(0, len(dataset), batch_size):
-                batch = [dataset[int(j)] for j in idx[i:i+batch_size]]
-                x_real = jnp.stack([x for x, _ in batch])
-                yield x_real
-
-    loader = data_loader(train_dataset, batch_size, rng)
-
-    # Define loss functions
-    def compute_D_loss(params_D, params_G, x_real, rng):
-        rng, fake_rng = jax.random.split(rng)
+    @nnx.jit
+    def discriminator_step(generator: Generator, d_optimizer: nnx.Optimizer, x_real, rng):
+        generator.eval()
+        discriminator=d_optimizer.model
+        discriminator.train()
         
-        # Forward pass through generator
-        x_recon, mu, logvar = generator.apply(params_G, x_real, rng)
-        z = jax.random.normal(fake_rng, (x_real.shape[0], generator.latent_size))
-        x_fake = generator.apply(params_G, method='decode')(params_G, z)
-        
-        # Discriminator outputs
-        d_real = discriminator.apply(params_D, x_real)
-        d_fake_recon = discriminator.apply(params_D, x_recon)
-        d_fake_gen = discriminator.apply(params_D, x_fake)
-        
-        # Loss calculations
+        def d_loss_fn(discriminator: Discriminator):
+            d_real = discriminator(x_real)
+            d_real_loss = D_real_loss_fn(d_real)
+
+            x_recon, mu, logvar = generator(x_real, rng=rng)
+            z = jax.random.normal(rng, shape=(x_real.shape[0], generator.latent_size))
+            x_fake = generator.decode(z)
+
+            d_fake_recon = discriminator(x_recon)
+            d_fake_gen = discriminator(x_fake)
+            d_fake_loss = (D_fake_loss_fn(d_fake_recon) + D_fake_loss_fn(d_fake_gen)) / 2.0
+
+            d_loss = (d_real_loss + d_fake_loss) / 2.0
+            return d_loss
+
+        d_loss, grads = nnx.value_and_grad(d_loss_fn)(discriminator)
+        d_optimizer.update(grads)
+
+        discriminator.eval()
+        d_real = discriminator(x_real)
         d_real_loss = D_real_loss_fn(d_real)
-        d_fake_loss = (D_fake_loss_fn(d_fake_recon) + D_fake_loss_fn(d_fake_gen)) / 2
-        d_loss = (d_real_loss + d_fake_loss) / 2
-        
-        return d_loss, (d_real.mean(), d_fake_recon.mean())
 
-    def compute_G_loss(params_G, params_D, x_real, rng):
-        x_recon, mu, logvar = generator.apply(params_G, x_real, rng)
-        
-        # Loss components
-        recon_loss = jnp.mean((x_recon - x_real) ** 2)
-        kl_loss = D_KL(mu, logvar)
-        d_recon = discriminator.apply(params_D, x_recon)
-        adv_loss = G_loss_fn(d_recon)
-        
-        total_loss = recon_weight * recon_loss + kl_weight * kl_loss + adv_weight * adv_loss
-        return total_loss, (recon_loss, kl_loss, adv_loss)
+        x_recon, mu, logvar = generator(x_real, rng=rng)
+        z = jax.random.normal(rng, shape=(x_real.shape[0], generator.latent_size))
+        x_fake = generator.decode(z)
 
-    # Training step functions
-    @partial(jax.jit, static_argnums=(3,))
-    def train_step_D(state_G, state_D, x_real, rng):
-        grad_fn = jax.value_and_grad(compute_D_loss, has_aux=True)
-        (d_loss, (d_real_score, d_fake_score)), grads = grad_fn(
-            state_D.params, state_G.params, x_real, rng
-        )
-        state_D = state_D.apply_gradients(grads=grads)
-        return state_D, d_loss, d_real_score, d_fake_score
+        d_fake_recon = discriminator(x_recon)
+        d_fake_gen = discriminator(x_fake)
+        d_fake_loss = (D_fake_loss_fn(d_fake_recon) + D_fake_loss_fn(d_fake_gen)) / 2.0
 
-    @partial(jax.jit, static_argnums=(3,))
-    def train_step_G(state_G, state_D, x_real, rng):
-        grad_fn = jax.value_and_grad(compute_G_loss, has_aux=True)
-        (g_loss, (recon_loss, kl_loss, adv_loss)), grads = grad_fn(
-            state_G.params, state_D.params, x_real, rng
-        )
-        state_G = state_G.apply_gradients(grads=grads)
-        return state_G, g_loss, recon_loss, kl_loss, adv_loss
+        return d_loss, d_real_loss, d_fake_loss
 
-    # Training loop
-    tracker = VAEGAN_Tracker(n_iters, plot_freq)
-    iter_pbar = tqdm(range(n_iters), desc="Training", unit="iter")
+    @nnx.jit
+    def generator_step(discriminator: Discriminator, g_optimizer: nnx.Optimizer, x_real, rng):
+        discriminator.eval()
+        generator=g_optimizer.model
+        generator.train()
 
-    for iter in iter_pbar:
-        x_real = next(loader)
-        rng, step_rng_D, step_rng_G = jax.random.split(rng, 3)
-
-        # Train Discriminator
-        state_D, d_loss, d_real_score, d_fake_score = train_step_D(
-            state_G, state_D, x_real, step_rng_D
-        )
-
-        # Train Generator
-        state_G, g_loss, recon_loss, kl_loss, adv_loss = train_step_G(
-            state_G, state_D, x_real, step_rng_G
-        )
-
-        # Update tracker
-        if iter % plot_freq == 0:
-            rng, sample_rng = jax.random.split(rng)
-            z_sample = jax.random.normal(sample_rng, (24, generator.latent_size))
-            gen_samples = generator.apply(state_G.params, method='decode')(state_G.params, z_sample)
+        def g_loss_fn(generator: Generator):
+            x_recon, mu, logvar = generator(x_real, rng=rng)
+            recon_loss = jp.mean((x_recon - x_real) ** 2)
+            kl_loss = D_KL(mu, logvar)
             
-            idx = np.random.randint(0, x_real.shape[0])
-            sample_real = x_real[idx]
-            sample_recon = generator.apply(state_G.params, x_real[None, idx], rng)[0][0]
-            
-            tracker.update_vaegan(
-                real_score=d_real_score,
-                fake_score=d_fake_score,
-                D_loss=d_loss,
-                G_loss=g_loss,
-                recon_loss=recon_loss,
-                kl_loss=kl_loss,
-                x_real=sample_real[None],
-                x_recon=sample_recon[None],
+            d_recon = discriminator(x_recon)
+            adv_loss = G_loss_fn(d_recon)
+
+            total_loss = (
+                recon_weight * recon_loss
+                + kl_weight * kl_loss
+                + adv_weight * adv_loss
             )
-            tracker.get_samples(gen_samples)
+            return total_loss
 
-    return state_G, state_D
+        g_loss, grads = nnx.value_and_grad(g_loss_fn)(generator)
+        g_optimizer.update(grads)
+
+        generator.eval()
+        x_recon, mu, logvar = generator(x_real, rng=rng)
+        recon_loss = jp.mean((x_recon - x_real) ** 2)
+        kl_loss = D_KL(mu, logvar)
+        
+        d_recon = discriminator(x_recon)
+        adv_loss = G_loss_fn(d_recon)
+        return g_loss, recon_loss, kl_loss, adv_loss
+
+
+    # while iter < n_iters:
+    #     for x_real in train_loader:
+    #         if iter >= n_iters:
+    #             break
+    #         rng, rng_d, rng_g = jax.random.split(rng, 3)
+
+    #         d_loss, d_real_loss, d_fake_loss = discriminator_step(generator, optimizer_D, x_real, rng_d)
+    #         g_loss, recon_loss, kl_loss, adv_loss = generator_step(discriminator, optimizer_G, x_real, rng_g)
+
+    #         iter += 1
+    #         iter_pbar.set_postfix({
+    #                                 'D_loss': float(d_loss),
+    #                                 'G_loss': float(g_loss),
+    #                                 'D_real': float(d_real_loss),
+    #                                 'D_fake': float(d_fake_loss),
+    #                                 'Recon_loss': float(recon_loss),
+    #                                 'KL_loss': float(kl_loss)
+    #                             })
+    #         iter_pbar.update(1)
+
+    #         tracker.update(
+    #             real_score=d_real_loss,
+    #             fake_score=d_fake_loss,
+    #             D_loss=d_loss,
+    #             G_loss=g_loss,
+    #             recon_loss=recon_loss,
+    #             kl_loss=kl_loss
+    #         )
+
+    for epoch in range(epochs):
+        epoch_D_loss = 0.0
+        epoch_G_loss = 0.0
+        epoch_D_real = 0.0
+        epoch_D_fake = 0.0
+        epoch_recon = 0.0
+        epoch_kl = 0.0
+        batch_count = 0
+
+        for x_real in train_loader:
+            rng, rng_d, rng_g = jax.random.split(rng, 3)
+
+            # Training steps
+            d_loss, d_real_loss, d_fake_loss = discriminator_step(generator, optimizer_D, x_real, rng_d)
+            g_loss, recon_loss, kl_loss, adv_loss = generator_step(discriminator, optimizer_G, x_real, rng_g)
+
+            # Accumulate losses
+            epoch_D_loss += float(d_loss)
+            epoch_G_loss += float(g_loss)
+            epoch_D_real += float(d_real_loss)
+            epoch_D_fake += float(d_fake_loss)
+            epoch_recon += float(recon_loss)
+            epoch_kl += float(kl_loss)
+            batch_count += 1
+
+            # Update progress bar
+            iter_pbar.set_postfix({
+                'D_loss': float(epoch_D_loss/batch_count),
+                'G_loss': float(epoch_G_loss/batch_count),
+                'D_real': float(epoch_D_real/batch_count),
+                'D_fake': float(epoch_D_fake/batch_count),
+                'Recon_loss': float(epoch_recon/batch_count),
+                'KL_loss': float(epoch_kl/batch_count)
+            })
+
+        tracker.update(
+            real_score=epoch_D_real/batch_count,
+            fake_score=epoch_D_fake/batch_count,
+            D_loss=epoch_D_loss/batch_count,
+            G_loss=epoch_G_loss/batch_count,
+            recon_loss=epoch_recon/batch_count,
+            kl_loss=epoch_kl/batch_count
+        )
+
+        iter_pbar.update(1)
+
+    tracker.close(True)
+
+    save_model(generator, "weights/generator.pkl")
+    save_model(discriminator, "weights/discriminator.pkl")
+
+
+if __name__ == '__main__':
+    rng = jax.random.PRNGKey(42)
+    input_size = 47
+    latent_size = 16
+
+    generator_config = dict(
+        latent_size=latent_size,
+        output_size=input_size,
+        hidden_sizes=[128, 64, 32],
+        batchnorm=True,
+        activation='relu',
+    )
+
+    discriminator_config = dict(
+        input_size=input_size,
+        hidden_sizes=[64, 32],
+        batchnorm=False,
+        activation='relu',
+    )
+
+    train_config = dict(
+        optimizer_name_G='AdamW',
+        optimizer_config_G=dict(learning_rate=1e-3, weight_decay=1e-5,),
+        lr_scheduler_name_G=None,
+        lr_scheduler_config_G=dict(T_max=50000, eta_min=1e-5, last_epoch=-1),
+
+        optimizer_name_D='AdamW',
+        optimizer_config_D=dict(learning_rate=1e-4, weight_decay=1e-5,),
+        lr_scheduler_name_D=None,
+        lr_scheduler_config_D=dict(T_max=50000, eta_min=1e-5, last_epoch=-1),
+
+        # n_iters=10000,
+        epochs=50,
+        batch_size=256,
+    )
+
+    rng, gen_rng, disc_rng = jax.random.split(rng, 3)
+    generator = Generator(rngs=nnx.Rngs(gen_rng), **generator_config)
+    discriminator = Discriminator(rngs=nnx.Rngs(disc_rng), **discriminator_config)
+
+    observations = get_observation()
+    train_data = jp.concatenate(observations)
+
+    train_GAN(
+        generator=generator,
+        discriminator=discriminator,
+        train_dataset=train_data,
+        rng=rng,
+        optimizer_name_G=train_config["optimizer_name_G"].lower(),
+        optimizer_config_G=train_config["optimizer_config_G"],
+        optimizer_name_D=train_config["optimizer_name_D"].lower(),
+        optimizer_config_D=train_config["optimizer_config_D"],
+        epochs=train_config["epochs"],
+        batch_size=train_config["batch_size"],
+        recon_weight=0.3,
+        kl_weight=0.01,
+        adv_weight=0.3,
+    )
+
+    # generator = load_model(Generator, gen_rng, "weights/generator.pkl", **generator_config)
+    # discriminator = load_model(Discriminator, disc_rng, "weights/discriminator.pkl", **discriminator_config)
+
+
+
+    
