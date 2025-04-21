@@ -19,7 +19,8 @@ class JAXDataLoader:
                  data: jp.ndarray, 
                  batch_size: int = 128, 
                  rng: jax.random.PRNGKey = jax.random.PRNGKey(0), 
-                 shuffle: bool = True):
+                 shuffle: bool = True,
+                 normalize: bool = True):
         
         self.data = data
         self.batch_size = batch_size
@@ -29,6 +30,10 @@ class JAXDataLoader:
         self.indices = jp.arange(self.data.shape[0])
         self.num_batches = self.data.shape[0] // batch_size
         self.current_batch = 0
+
+        if normalize:
+            self.data_mean = data.mean(0)
+            self.data_std = data.std(0)
 
         if self.shuffle:
             self._shuffle()
@@ -56,17 +61,32 @@ class JAXDataLoader:
     def __len__(self):
         return self.num_batches
     
-def save_model(model: nnx.Module, path: str='weights'):
+    def normalize(self, batch, eps=1e-8):
+        return (batch-self.data_mean)/(self.data_std+eps)
+    
+    def unnormalize(self, batch, eps=1e-8):
+        return batch*(self.data_std+eps)+self.data_mean
+
+def save_config(config: dict, path: str='weights'):
     with open(path, "wb") as f:
-        state = nnx.state(model)
-        pickle.dump(state, f)
+        pickle.dump(config, f)
+
+def load_config(path: str='weights'):
+    with open(path, "rb") as f:
+        config = pickle.load(f)
+    return config
 
 def load_model(model_cls, rng, path: str='weights', **kwargs) -> nnx.Module:
     with open(path, "rb") as f:
         state = pickle.load(f)
     model = model_cls(rngs=nnx.Rngs(rng), **kwargs)
-    model = nnx.update(model, state)
+    nnx.update(model, state)
     return model
+
+def save_model(model: nnx.Module, path: str='weights'):
+    with open(path, "wb") as f:
+        state = nnx.state(model)
+        pickle.dump(state, f)
 
 class Tracker:
     def __init__(
@@ -105,7 +125,7 @@ class Tracker:
         self.G_loss_curve, = self.ax2.plot([], [], label='G Loss')
         self.recon_loss_curve, = self.ax2.plot([], [], label='Recon Loss')
         self.kl_loss_curve, = self.ax2.plot([], [], label='KL Loss')
-        self._setup_plot(self.ax2, 'Losses', 'Loss', ylim=(0, 10))
+        self._setup_plot(self.ax2, 'Losses', 'Loss', ylim=(0, 2))
 
         self.fig.suptitle('Training Progress', fontsize=14)
         self.fig.tight_layout()
@@ -165,6 +185,7 @@ class Tracker:
 
     def close(self, save: bool = True):
         if self.plot:
+            self._update_plots()
             if save:
                 self.fig.savefig('fig.png')
             plt.ioff()

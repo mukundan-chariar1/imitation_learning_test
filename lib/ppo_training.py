@@ -13,10 +13,8 @@ from jax import numpy as jp
 import matplotlib.pyplot as plt
 from IPython.display import HTML, clear_output
 
-# import streamlit as stream
-
 # from lib.environments.env import *
-from lib.network import *
+from lib.environments.classic import adversarialHumanoid
 from lib.utils.viz import *
 from lib.utils.wrappers import *
 from lib.environments.env import *
@@ -26,10 +24,6 @@ import pickle
 
 from jax.debug import breakpoint as jst
 from pdb import set_trace as st
-
-# jax.config.update("jax_debug_nans", True)
-# jax.config.update('jax_default_matmul_precision', jax.lax.Precision.HIGH)
-# jax.config.update("jax_enable_x64", True)
 
 def format_elapsed_time(seconds):
     """Converts elapsed seconds to HH:MM:SS format"""
@@ -59,16 +53,21 @@ def progress(num_steps, metrics):
 
 if __name__=='__main__':
     # st()
-    envs.register_environment('custom_humanoid', SMPLHumanoid)
+    # envs.register_environment('custom_humanoid', SMPLHumanoid)
     # envs.register_environment('custom_humanoid', customHumanoid)
     # envs.register_environment('custom_humanoid', SkelHumanoid)
+    envs.register_environment('custom_humanoid', adversarialHumanoid)
     env_name = "custom_humanoid" 
     backend = 'mjx' 
 
+    # env = envs.get_environment(env_name=env_name,
+    #                         backend=backend, use_6d_notation=False)
+    rng = jax.random.PRNGKey(0)
     env = envs.get_environment(env_name=env_name,
-                            backend=backend, use_6d_notation=False)
-    display_init_positions(env, headless=False)
-    # test_environment_for_debug(env)
+                            backend=backend, rng=rng)
+    # display_init_positions(env, headless=False)
+    test_environment_for_debug(env, headless=False)
+    st()
     # test_environment_for_debug(env, headless=False)
     # exit()
     # st()
