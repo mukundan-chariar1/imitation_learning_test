@@ -7,6 +7,7 @@ from brax.io import mjcf
 
 import jax
 from jax import numpy as jp
+from flax import nnx
 
 import mujoco
 
@@ -85,7 +86,7 @@ class adversarialHumanoid(PipelineEnv):
     uses a learned reward function to train it
     """
 
-    def __init__(self, rng, **kwargs):
+    def __init__(self, rng, disc_path, **kwargs):
 
         path = 'lib/model/humanoid.xml'
         mj_model = mujoco.MjModel.from_xml_path(path)
@@ -102,9 +103,10 @@ class adversarialHumanoid(PipelineEnv):
         self._upward_reward_weight=10
         self._vel_reward_weight=15
 
-        self.discriminator_config=load_config('weights/discriminator_config.pkl')
-        self.discriminator=load_model(Discriminator, rng, 'weights/discriminator.pkl', **self.discriminator_config)
+        self.discriminator_config=load_config(disc_path.replace('discriminator', 'discriminator_config'))
+        self.discriminator=load_model(Discriminator, rng, disc_path, **self.discriminator_config)
         self.discriminator.eval()
+        self.relu=nnx.relu
 
     def reset(self, rng: jax.Array) -> State:
         rng, rng1, rng2 = jax.random.split(rng, 3)
@@ -125,7 +127,7 @@ class adversarialHumanoid(PipelineEnv):
         new_state=self.pipeline_step(state_prev, action)
         obs = self._get_obs(new_state, action)
 
-        reward=self.discriminator(obs)[0]
+        reward=self.relu(self.discriminator(jp.concatenate((state.obs, obs))))[0]
 
         done=jp.where(new_state.x.pos[0, 2] >= jp.ones(1)*0.5, jp.zeros(1), jp.ones(1))[0]
 

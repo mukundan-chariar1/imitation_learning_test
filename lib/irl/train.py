@@ -82,8 +82,12 @@ def train_GAN(generator,
               recon_weight=1.0,
               kl_weight=0.01,
               adv_weight=0.001,
+              diff: bool=True
               ):
-    train_loader = JAXDataLoader(train_dataset, batch_size=batch_size, shuffle=True)
+    if diff:
+        train_loader=JAXDataLoaderDiff(train_dataset, batch_size=batch_size, shuffle=True)
+    else:
+        train_loader = JAXDataLoader(jp.concatenate(train_dataset), batch_size=batch_size, shuffle=True)
     tracker = Tracker(n_iters=epochs*len(train_loader), plot_freq=1000)
 
     # rng, rng_d, rng_g = jax.random.split(rng, 3)
@@ -219,20 +223,20 @@ def train_GAN(generator,
 
 if __name__ == '__main__':
     rng = jax.random.PRNGKey(42)
-    input_size = 47
-    latent_size = 3
+    input_size = 47*2
+    latent_size = 7
 
     generator_config = dict(
         latent_size=latent_size,
         output_size=input_size,
-        hidden_sizes=[64, 64],
+        hidden_sizes=[128, 64, 32],
         batchnorm=False,
         activation='relu',
     )
 
     discriminator_config = dict(
         input_size=input_size,
-        hidden_sizes=[128, 128],
+        hidden_sizes=[32, 32, 32],
         batchnorm=True,
         activation='relu',
     )
@@ -262,8 +266,7 @@ if __name__ == '__main__':
     generator = Generator(rngs=nnx.Rngs(gen_rng), **generator_config)
     discriminator = Discriminator(rngs=nnx.Rngs(disc_rng), **discriminator_config)
 
-    observations = get_observation()
-    train_data = jp.concatenate(observations)
+    train_data = get_observation()
 
     train_GAN(
         generator=generator,
@@ -280,6 +283,7 @@ if __name__ == '__main__':
         kl_weight=0.01,
         adv_weight=0.001,
         pretrain_epochs=1,
+        diff=True
     )
 
     # generator = load_model(Generator, gen_rng, "weights/generator.pkl", **generator_config)
