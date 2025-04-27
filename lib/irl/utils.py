@@ -67,7 +67,7 @@ class JAXDataLoader:
     def unnormalize(self, batch, eps=1e-8):
         return batch*(self.data_std+eps)+self.data_mean
     
-class JAXDataLoaderDiff:
+class JAXDataLoaderDiff(JAXDataLoader):
     def __init__(self, 
                  data: list, 
                  batch_size: int = 128, 
@@ -75,7 +75,26 @@ class JAXDataLoaderDiff:
                  shuffle: bool = True,
                  normalize: bool = True):
         
-        self.data = jp.concatenate([jp.concatenate((d[:-1], d[1:]), axis=1) for d in data])
+        # Create (x_t, x_{t+1}) pairs concatenated along the last axis
+        diff_data = jp.concatenate([jp.concatenate((d[:-1], d[1:]), axis=1) for d in data])
+        
+        # Initialize base class with processed data
+        super().__init__(data=diff_data,
+                         batch_size=batch_size,
+                         rng=rng,
+                         shuffle=shuffle,
+                         normalize=normalize)
+        
+class JAXDataLoaderRecurrent:
+    def __init__(self,
+                 data: list, 
+                 batch_size: int = 128, 
+                 rng: jax.random.PRNGKey = jax.random.PRNGKey(0), 
+                 shuffle: bool = True,
+                 normalize: bool = True):
+        self.data=jp.concatenate([jp.concatenate((d[:-1], d[1:]), axis=1) for d in data])
+        self.dones=jp.concatenate([self.create_dones(len(d)) for d in data])
+
         self.batch_size = batch_size
         self.shuffle = shuffle
         self.rng = rng
@@ -91,6 +110,12 @@ class JAXDataLoaderDiff:
         if self.shuffle:
             self._shuffle()
 
+    def create_dones(self,
+                     T: int):
+        dones = jp.zeros((T,))
+        dones = dones.at[-1].set(1.0)
+        return dones
+    
     def _shuffle(self):
         self.rng, subkey = jax.random.split(self.rng)
         self.indices = jax.random.permutation(subkey, self.indices)
@@ -108,8 +133,9 @@ class JAXDataLoaderDiff:
         end = start + self.batch_size
         batch_indices = self.indices[start:end]
         batch = self.data[batch_indices]
+        batch_dones=self.dones[batch_indices]
         self.current_batch += 1
-        return batch
+        return batch[:, :batch.shape[-1]//2], batch[:, batch.shape[-1]//2:], batch_dones
     
     def __len__(self):
         return self.num_batches
@@ -178,7 +204,7 @@ class Tracker:
         self.G_loss_curve, = self.ax2.plot([], [], label='G Loss')
         self.recon_loss_curve, = self.ax2.plot([], [], label='Recon Loss')
         self.kl_loss_curve, = self.ax2.plot([], [], label='KL Loss')
-        self._setup_plot(self.ax2, 'Losses', 'Loss', ylim=(0, 2))
+        self._setup_plot(self.ax2, 'Losses', 'Loss', ylim=(0, 10))
 
         self.fig.suptitle('Training Progress', fontsize=14)
         self.fig.tight_layout()
@@ -243,6 +269,60 @@ class Tracker:
                 self.fig.savefig('fig.png')
             plt.ioff()
             plt.close(self.fig)
+
+
+# class JAXDataLoaderDiff:
+#     def __init__(self, 
+#                  data: list, 
+#                  batch_size: int = 128, 
+#                  rng: jax.random.PRNGKey = jax.random.PRNGKey(0), 
+#                  shuffle: bool = True,
+#                  normalize: bool = True):
+        
+#         self.data = jp.concatenate([jp.concatenate((d[:-1], d[1:]), axis=1) for d in data])
+#         self.batch_size = batch_size
+#         self.shuffle = shuffle
+#         self.rng = rng
+
+#         self.indices = jp.arange(self.data.shape[0])
+#         self.num_batches = self.data.shape[0] // batch_size
+#         self.current_batch = 0
+
+#         if normalize:
+#             self.data_mean = self.data.mean(0)
+#             self.data_std = self.data.std(0)
+
+#         if self.shuffle:
+#             self._shuffle()
+
+#     def _shuffle(self):
+#         self.rng, subkey = jax.random.split(self.rng)
+#         self.indices = jax.random.permutation(subkey, self.indices)
+
+#     def __iter__(self):
+#         self.current_batch = 0
+#         if self.shuffle:
+#             self._shuffle()
+#         return self
+
+#     def __next__(self):
+#         if self.current_batch >= self.num_batches:
+#             raise StopIteration
+#         start = self.current_batch * self.batch_size
+#         end = start + self.batch_size
+#         batch_indices = self.indices[start:end]
+#         batch = self.data[batch_indices]
+#         self.current_batch += 1
+#         return batch
+    
+#     def __len__(self):
+#         return self.num_batches
+    
+#     def normalize(self, batch, eps=1e-8):
+#         return (batch-self.data_mean)/(self.data_std+eps)
+    
+#     def unnormalize(self, batch, eps=1e-8):
+#         return batch*(self.data_std+eps)+self.data_mean
         
 if __name__=='__main__':
     observations=get_observation()

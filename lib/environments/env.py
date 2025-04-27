@@ -23,7 +23,7 @@ class SMPLHumanoid_basic(PipelineEnv):
     uses SMPL formatted humanoid, makes it jump
     """
     def __init__(self, use_newton_solver: Optional[bool]=True, use_6d_notation: Optional[bool]=False, ignore_joint_positions: Optional[bool]=True, **kwargs):
-        path = 'lib/model/smpl_humanoid_v2.xml'
+        path = 'lib/model/smpl_sim_humanoid.xml'
         mj_model = mujoco.MjModel.from_xml_path(path)
         if use_newton_solver: mj_model.opt.solver = mujoco.mjtSolver.mjSOL_NEWTON
         sys = mjcf.load_model(mj_model)
@@ -437,3 +437,9 @@ class SMPLHumanoid_scaling(PipelineEnv):
         else: 
             obs=jp.concatenate([pipeline_state.q, pipeline_state.qd])
         return obs
+    
+if __name__=='__main__':
+    env=SMPLHumanoid_basic()
+    from lib.utils.viz import display_init_positions
+
+    display_init_positions(env, False)

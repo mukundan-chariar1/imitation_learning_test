@@ -128,6 +128,7 @@ class adversarialHumanoid(PipelineEnv):
         obs = self._get_obs(new_state, action)
 
         reward=self.relu(self.discriminator(jp.concatenate((state.obs, obs))))[0]
+        # reward=self.discriminator(jp.concatenate((state.obs, obs)))[0]
 
         done=jp.where(new_state.x.pos[0, 2] >= jp.ones(1)*0.5, jp.zeros(1), jp.ones(1))[0]
 

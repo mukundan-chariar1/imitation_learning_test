@@ -7,7 +7,7 @@ from functools import partial
 
 from tqdm import tqdm
 
-from lib.irl.gail import Generator, Discriminator
+from lib.irl.pred_gail import StepGenerator, StepDiscriminator
 from lib.irl.loss import D_real_loss_fn, D_fake_loss_fn, G_loss_fn, D_KL
 from lib.irl.utils import *
 from lib.utils.trajectory import get_observation
@@ -32,12 +32,12 @@ def pretrain_discriminator(discriminator,
     generator.eval()
 
     @nnx.jit
-    def pretrain_step(discriminator: Discriminator, d_optimizer: nnx.Optimizer, x_real, rng_d, rng_g):
+    def pretrain_step(discriminator: StepDiscriminator, d_optimizer: nnx.Optimizer, x_real, rng_d, rng_g):
         # Generate fake samples
         z = jax.random.normal(rng_g, (x_real.shape[0], generator.latent_size))  # make sure latent_dim is defined
         x_fake = generator.decode(z)
 
-        def d_loss_fn(discriminator: Discriminator):
+        def d_loss_fn(discriminator: StepDiscriminator):
             d_real = discriminator(x_real)
             d_fake = discriminator(x_fake)
 
@@ -84,10 +84,8 @@ def train_GAN(generator,
               adv_weight=0.001,
               diff: bool=True
               ):
-    if diff:
-        train_loader=JAXDataLoaderDiff(train_dataset, batch_size=batch_size, shuffle=True)
-    else:
-        train_loader = JAXDataLoader(jp.concatenate(train_dataset), batch_size=batch_size, shuffle=True)
+    
+    train_loader = JAXDataLoaderRecurrent(train_dataset, batch_size=batch_size, shuffle=True)
     tracker = Tracker(n_iters=epochs*len(train_loader), plot_freq=1000)
 
     # rng, rng_d, rng_g = jax.random.split(rng, 3)
@@ -99,21 +97,24 @@ def train_GAN(generator,
     optimizer_D = nnx.Optimizer(discriminator, getattr(optax, optimizer_name_D)(**optimizer_config_D))
 
     @nnx.jit
-    def discriminator_step(generator: Generator, d_optimizer: nnx.Optimizer, x_real, rng):
+    def discriminator_step(generator: StepGenerator, d_optimizer: nnx.Optimizer, x_real, x_real_next, rng):
         generator.eval()
         discriminator=d_optimizer.model
         discriminator.train()
+
+        rng, loss_rng = jax.random.split(rng)
         
-        def d_loss_fn(discriminator: Discriminator):
-            d_real = discriminator(x_real)
+        def d_loss_fn(discriminator: StepDiscriminator):
+            d_real = discriminator(jp.stack((x_real, x_real_next), axis=1))
             d_real_loss = D_real_loss_fn(d_real)
 
-            x_recon, mu, logvar = generator(x_real, rng=rng)
+            x_recon, x_recon_next, mu, logvar = generator(x_real, rng=rng)
             z = jax.random.normal(rng, shape=(x_real.shape[0], generator.latent_size))
             x_fake = generator.decode(z)
+            x_fake_next = generator.step_decode(z)
 
-            d_fake_recon = discriminator(x_recon)
-            d_fake_gen = discriminator(x_fake)
+            d_fake_recon = discriminator(jp.stack((x_recon, x_recon_next), axis=1))
+            d_fake_gen = discriminator(jp.stack((x_fake, x_fake_next), axis=1))
             d_fake_loss = (D_fake_loss_fn(d_fake_recon) + D_fake_loss_fn(d_fake_gen)) / 2.0
 
             # d_loss = (d_real_loss + d_fake_loss) / 2.0
@@ -125,35 +126,39 @@ def train_GAN(generator,
         d_optimizer.update(grads)
 
         discriminator.eval()
-        d_real = discriminator(x_real)
+        d_real = discriminator(jp.stack((x_real, x_real_next), axis=1))
         d_real_loss = D_real_loss_fn(d_real)
 
-        x_recon, mu, logvar = generator(x_real, rng=rng)
+        x_recon, x_recon_next, mu, logvar = generator(x_real, rng=loss_rng)
         z = jax.random.normal(rng, shape=(x_real.shape[0], generator.latent_size))
         x_fake = generator.decode(z)
+        x_fake_next = generator.step_decode(z)
 
-        d_fake_recon = discriminator(x_recon)
-        d_fake_gen = discriminator(x_fake)
+        d_fake_recon = discriminator(jp.stack((x_recon, x_recon_next), axis=1))
+        d_fake_gen = discriminator(jp.stack((x_fake, x_fake_next), axis=1))
         d_fake_loss = (D_fake_loss_fn(d_fake_recon) + D_fake_loss_fn(d_fake_gen)) / 2.0
 
         return d_loss, d_real_loss, d_fake_loss
 
     @nnx.jit
-    def generator_step(discriminator: Discriminator, g_optimizer: nnx.Optimizer, x_real, rng):
+    def generator_step(discriminator: StepDiscriminator, g_optimizer: nnx.Optimizer, x_real, x_real_next, rng):
         discriminator.eval()
         generator=g_optimizer.model
         generator.train()
 
-        def g_loss_fn(generator: Generator):
-            x_recon, mu, logvar = generator(x_real, rng=rng)
+        rng, loss_rng = jax.random.split(rng)
+
+        def g_loss_fn(generator: StepGenerator, discriminator: StepDiscriminator=discriminator):
+            x_recon, x_recon_next, mu, logvar = generator(x_real, rng=rng)
             recon_loss = jp.mean((x_recon - x_real) ** 2)
+            recon_next_loss = jp.mean((x_recon_next - x_real_next) ** 2)
             kl_loss = D_KL(mu, logvar)
-            
-            d_recon = discriminator(x_recon)
+
+            d_recon = discriminator(jp.stack((x_recon, x_recon_next), axis=1))
             adv_loss = G_loss_fn(d_recon)
 
             total_loss = (
-                recon_weight * recon_loss
+                recon_weight * (recon_loss+recon_next_loss)/2
                 + kl_weight * kl_loss
                 + adv_weight * adv_loss
             )
@@ -163,13 +168,14 @@ def train_GAN(generator,
         g_optimizer.update(grads)
 
         generator.eval()
-        x_recon, mu, logvar = generator(x_real, rng=rng)
+        x_recon, x_recon_next, mu, logvar = generator(x_real, rng=loss_rng)
         recon_loss = jp.mean((x_recon - x_real) ** 2)
+        recon_next_loss = jp.mean((x_recon_next - x_real_next) ** 2)
         kl_loss = D_KL(mu, logvar)
         
-        d_recon = discriminator(x_recon)
+        d_recon = discriminator(jp.stack((x_recon, x_recon_next), axis=1))
         adv_loss = G_loss_fn(d_recon)
-        return g_loss, recon_loss, kl_loss, adv_loss
+        return g_loss, (recon_loss+recon_next_loss)/2, kl_loss, adv_loss
 
     for epoch in range(epochs):
         epoch_D_loss = 0.0
@@ -180,12 +186,12 @@ def train_GAN(generator,
         epoch_kl = 0.0
         batch_count = 0
 
-        for i, x_real in enumerate(train_loader):
+        for i, (x_real, x_real_next, done) in enumerate(train_loader):
             rng, rng_d, rng_g = jax.random.split(rng, 3)
 
             # Training steps
-            d_loss, d_real_loss, d_fake_loss = discriminator_step(generator, optimizer_D, x_real, rng_d)
-            g_loss, recon_loss, kl_loss, adv_loss = generator_step(discriminator, optimizer_G, x_real, rng_g)
+            d_loss, d_real_loss, d_fake_loss = discriminator_step(generator, optimizer_D, x_real, x_real_next, rng_d)
+            g_loss, recon_loss, kl_loss, adv_loss = generator_step(discriminator, optimizer_G, x_real, x_real_next, rng_g)
 
             # Accumulate losses
             epoch_D_loss += float(d_loss)
@@ -219,32 +225,32 @@ def train_GAN(generator,
 
     tracker.close(True)
 
-    save_model(generator, "weights/generator.pkl")
-    save_model(discriminator, "weights/discriminator.pkl")
+    save_model(generator, "weights/step_generator.pkl")
+    save_model(discriminator, "weights/step_discriminator.pkl")
 
 
 if __name__ == '__main__':
     rng = jax.random.PRNGKey(42)
-    input_size = 47*2
-    latent_size = 3
+    input_size = 47
+    latent_size = 8
 
     generator_config = dict(
         latent_size=latent_size,
         output_size=input_size,
         hidden_sizes=[128, 128],
-        batchnorm=False,
+        batchnorm=True,
         activation='leaky_relu',
     )
 
     discriminator_config = dict(
         input_size=input_size,
-        hidden_sizes=[128, 128],
+        hidden_sizes=[256, 128],
         batchnorm=True,
         activation='relu',
     )
 
-    save_config(generator_config, 'weights/generator_config.pkl')
-    save_config(discriminator_config, 'weights/discriminator_config.pkl')
+    save_config(generator_config, 'weights/step_generator_config.pkl')
+    save_config(discriminator_config, 'weights/step_discriminator_config.pkl')
 
     train_config = dict(
         optimizer_name_G='AdamW',
@@ -260,13 +266,13 @@ if __name__ == '__main__':
         lr_scheduler_config_D=dict(T_max=50000, eta_min=1e-5, last_epoch=-1),
 
         pretrain_epochs=1,
-        epochs=35,
+        epochs=10,
         batch_size=256,
     )
 
     rng, gen_rng, disc_rng = jax.random.split(rng, 3)
-    generator = Generator(rngs=nnx.Rngs(gen_rng), **generator_config)
-    discriminator = Discriminator(rngs=nnx.Rngs(disc_rng), **discriminator_config)
+    generator = StepGenerator(rngs=nnx.Rngs(gen_rng), **generator_config)
+    discriminator = StepDiscriminator(rngs=nnx.Rngs(disc_rng), **discriminator_config)
 
     train_data = get_observation()
 
@@ -288,8 +294,8 @@ if __name__ == '__main__':
         diff=True
     )
 
-    # generator = load_model(Generator, gen_rng, "weights/generator.pkl", **generator_config)
-    # discriminator = load_model(Discriminator, disc_rng, "weights/discriminator.pkl", **discriminator_config)
+    # generator = load_model(StepGenerator, gen_rng, "weights/generator.pkl", **generator_config)
+    # discriminator = load_model(StepDiscriminator, disc_rng, "weights/discriminator.pkl", **discriminator_config)
 
 
 
